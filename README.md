@@ -5,14 +5,14 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 ### Login
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
-## CLIENT page
+### CLIENT page
 <img width="1272" height="990" alt="image" src="https://github.com/user-attachments/assets/2880302d-acc6-4018-b3e2-76bf0b7252e4" />
 
-## ADMIN page
+### ADMIN page
 <img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/c1ae53d8-f48d-415a-9ce4-51c4ea392412" />
 
 
-### How to Run Locally
+## How to Run Locally
 
 1. **Clone the repository**:
    ```bash
