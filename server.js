@@ -28,6 +28,7 @@ if (!fs.existsSync(path.join(__dirname, 'data'))) {
 function initializeSettings() {
   if (!fs.existsSync(SETTINGS_FILE)) {
     const defaultSettings = {
+      portalHeading: 'HERM00R MERCENARY PORTAL',
       unt: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY format
       currentGalacticPos: 'UNKNOWN_SECTOR',
       colorScheme: 'grey',
@@ -104,6 +105,7 @@ function readSettings() {
     const settings = JSON.parse(data);
     // Ensure settings have the expected structure
     return {
+      portalHeading: settings.portalHeading || 'HERM00R MERCENARY PORTAL',
       unt: settings.unt || '',
       currentGalacticPos: settings.currentGalacticPos || '',
       colorScheme: settings.colorScheme || 'grey',
@@ -111,7 +113,7 @@ function readSettings() {
     };
   } catch (error) {
     // Handle file not found or JSON parse errors gracefully
-    return { unt: '', currentGalacticPos: '', colorScheme: 'grey', userGroup: 'FREELANCE_OPERATORS' };
+    return { portalHeading: 'HERM00R MERCENARY PORTAL', unt: '', currentGalacticPos: '', colorScheme: 'grey', userGroup: 'FREELANCE_OPERATORS' };
   }
 }
 
@@ -248,7 +250,7 @@ initializeSettings();
 // Routes
 app.get('/', (req, res) => {
   const settings = readSettings();
-  res.render('landing', { error: req.query.error, colorScheme: settings.colorScheme });
+  res.render('landing', { error: req.query.error, colorScheme: settings.colorScheme, settings });
 });
 
 app.post('/authenticate', (req, res) => {
@@ -344,10 +346,26 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.put('/api/settings', (req, res) => {
-  const unt = req.body.unt || '';
-  const currentGalacticPos = req.body.currentGalacticPos || '';
+  const portalHeading = req.body.portalHeading ?? '';
+  const unt = req.body.unt ?? '';
+  const currentGalacticPos = req.body.currentGalacticPos ?? '';
   const colorScheme = req.body.colorScheme || 'grey';
-  const userGroup = req.body.userGroup || '';
+  const userGroup = req.body.userGroup ?? '';
+  
+  // Validate portal heading (max length 100 characters)
+  const trimmedPortalHeading = (typeof portalHeading === 'string' ? portalHeading : '').trim();
+  if (trimmedPortalHeading.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Portal Heading cannot be empty' 
+    });
+  }
+  if (trimmedPortalHeading.length > 100) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Portal Heading must be 100 characters or less' 
+    });
+  }
   
   // Validate color scheme
   const validColorSchemes = ['grey', 'orange', 'green', 'blue'];
@@ -359,7 +377,7 @@ app.put('/api/settings', (req, res) => {
   }
   
   // Validate userGroup (max length 100 characters)
-  const trimmedUserGroup = userGroup.trim();
+  const trimmedUserGroup = (typeof userGroup === 'string' ? userGroup : '').trim();
   if (trimmedUserGroup.length === 0) {
     return res.status(400).json({ 
       success: false, 
@@ -409,6 +427,7 @@ app.put('/api/settings', (req, res) => {
   }
   
   const settings = {
+    portalHeading: trimmedPortalHeading,
     unt: unt.trim(),
     currentGalacticPos: currentGalacticPos.trim(),
     colorScheme: colorScheme,

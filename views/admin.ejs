@@ -363,6 +363,11 @@
     <h2>Global Settings</h2>
     <form id="settingsForm">
       <div class="form-group">
+        <label for="settingsPortalHeading">Portal Heading (Landing & Client View)</label>
+        <input type="text" id="settingsPortalHeading" name="portalHeading" value="<%= settings.portalHeading %>" maxlength="100" required>
+      </div>
+      
+      <div class="form-group">
         <label for="settingsColorScheme">Color Scheme (Client & Landing View)</label>
         <select id="settingsColorScheme" name="colorScheme" required>
           <option value="grey" <%= settings.colorScheme === 'grey' ? 'selected' : '' %>>Grey (Black & White)</option>

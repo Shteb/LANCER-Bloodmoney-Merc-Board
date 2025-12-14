@@ -173,6 +173,17 @@ body.blue .job-emblem img {
   filter: invert(71%) sepia(42%) saturate(1500%) hue-rotate(180deg) brightness(100%);
 }
 
+/* Currency icon color matching for different color schemes */
+/* Grey and blue use base white filter from currency.css */
+
+body.orange .currency-icon {
+  filter: invert(71%) sepia(85%) saturate(1500%) hue-rotate(350deg) brightness(100%);
+}
+
+body.green .currency-icon {
+  filter: invert(71%) sepia(85%) saturate(3000%) hue-rotate(80deg) brightness(100%);
+}
+
 .job-card-header {
   margin-bottom: 15px;
   padding-bottom: 10px;

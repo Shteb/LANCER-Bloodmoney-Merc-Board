@@ -10,4 +10,5 @@
   height: 18px;
   margin-left: 4px;
   vertical-align: middle;
+  filter: invert(100%);
 }
