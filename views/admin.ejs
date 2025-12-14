@@ -329,6 +329,27 @@
       background-color: white;
       border-radius: 3px;
     }
+
+    .form-inline {
+      display: inline;
+    }
+
+    .is-hidden {
+      display: none;
+    }
+
+    .helper-text {
+      font-size: 0.9em;
+      color: #e0e0e0;
+    }
+
+    .btn-add-job {
+      margin-top: 25px;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -438,15 +459,15 @@
 	
 <div class="button-group">
   <div class="button-container">
-    <form id="uploadForm" enctype="multipart/form-data" style="display:inline;">
-      <input type="file" id="fileInput" name="myFile" style="display:none;" accept="image/png,image/jpeg,image/bmp">
+    <form id="uploadForm" class="form-inline" enctype="multipart/form-data">
+      <input type="file" id="fileInput" class="is-hidden" name="myFile" accept="image/png,image/jpeg,image/bmp">
       <button type="button" class="btn btn-neutral"
         onclick="document.getElementById('fileInput').click();"
         title="Uploads an image and converts it to SVG">
         Upload Emblem
       </button>
     </form>
-    <p style="font-size:0.9em; color:#e0e0e0;">Accepts PNG, JPEG, BMP (max 10MB)</p>
+    <p class="helper-text">Accepts PNG, JPEG, BMP (max 10MB)</p>
   </div>
   
   <div class="button-container">
@@ -454,11 +475,11 @@
       title="Deletes the currently selected emblem (if not in use by any jobs)">
       Delete Selected Emblem
     </button>
-    <p style="font-size:0.9em; color:#e0e0e0;">Deletes the selected emblem if not in use</p>
+    <p class="helper-text">Deletes the selected emblem if not in use</p>
   </div>
 </div>
 
-<button type="submit" class="btn btn-primary" form="addJobForm" style="margin-top:25px; padding:15px 30px; font-size:16px; font-weight:bold; box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);">Add Job</button>
+<button type="submit" class="btn btn-primary btn-add-job" form="addJobForm">Add Job</button>
 	
   </div>
 
