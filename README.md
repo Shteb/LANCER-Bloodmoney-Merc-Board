@@ -13,6 +13,9 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 
 
 ## How to Run Locally
+0. **You will need Node Package Manager (NPM) and therefore Node.js to use this.** 
+
+   For Windows at least, you'll want to install Node.js through the installer on their website here: https://nodejs.org/en/download
 
 1. **Clone the repository**:
    ```bash
