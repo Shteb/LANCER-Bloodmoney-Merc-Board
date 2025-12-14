@@ -39,7 +39,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
    - **CLIENT Mode**: Enter `IMHOTEP` (view-only access)
    - **ADMIN Mode**: Enter `TARASQUE` (full management access)
 
-### Features
+## Features
 
 - **Terminal-Styled Interface**: Client view features a retro terminal aesthetic with green-on-black color scheme, scanline effects, and glowing text
 - **Dual Access Modes**:
