@@ -2,7 +2,7 @@
 
 A terminal-styled web application for managing and viewing LANCER RPG job postings. Features password-gated access with separate client and admin interfaces.
 
-## Login
+### Login
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
 ## CLIENT page
@@ -12,7 +12,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 <img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/c1ae53d8-f48d-415a-9ce4-51c4ea392412" />
 
 
-## How to Run Locally
+### How to Run Locally
 
 1. **Clone the repository**:
    ```bash
@@ -36,7 +36,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
    - **CLIENT Mode**: Enter `IMHOTEP` (view-only access)
    - **ADMIN Mode**: Enter `TARASQUE` (full management access)
 
-## Features
+### Features
 
 - **Terminal-Styled Interface**: Client view features a retro terminal aesthetic with green-on-black color scheme, scanline effects, and glowing text
 - **Dual Access Modes**:
