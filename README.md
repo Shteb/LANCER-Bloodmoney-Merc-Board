@@ -6,7 +6,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
 ### CLIENT page
-<img width="1276" height="1000" alt="image" src="https://github.com/user-attachments/assets/6c3163a7-2edd-4f9d-8442-283e98cdef7b" />
+<img width="1276" height="1000" alt="image" src="https://github.com/user-attachments/assets/1c054f9e-9abc-4c1d-92bd-f4eb7f082a07" />
 
 ### ADMIN page
 <img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/c1ae53d8-f48d-415a-9ce4-51c4ea392412" />
