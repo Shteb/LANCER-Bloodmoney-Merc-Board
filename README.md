@@ -18,7 +18,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 <img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/959b93d8-0ac5-4f7d-b5f4-ac838bbe38b7" />
 
 ### ADMIN page
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/b6c936a0-8192-4501-9b80-aed059fa1917" />
+<img src="https://github.com/user-attachments/assets/b6c936a0-8192-4501-9b80-aed059fa1917" />
 
 ## How to Run Locally
 0. **You will need Node Package Manager (NPM) and therefore Node.js to use this.** 
