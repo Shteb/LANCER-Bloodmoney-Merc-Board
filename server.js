@@ -1,11 +1,28 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
-
+const helpers = require('./helpers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Constants
+const PASSWORDS = {
+  CLIENT: 'IMHOTEP',
+  ADMIN: 'TARASQUE'
+};
+
+const FILE_UPLOAD = {
+  MAX_SIZE: 10 * 1024 * 1024, // 10MB
+  ALLOWED_TYPES: new Set(['image/png', 'image/jpeg', 'image/bmp'])
+};
+
+const BASE_MODULES = {
+  CORE_COUNT: 3,
+  MAJOR_COUNT: 6,
+  MINOR_COUNT: 6,
+  TOTAL_COUNT: 15
+};
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -32,8 +49,8 @@ function initializeSettings() {
   if (!fs.existsSync(SETTINGS_FILE)) {
     const defaultSettings = {
       ...DEFAULT_SETTINGS,
-      unt: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY format
-      currentGalacticPos: 'UNKNOWN_SECTOR'
+      unt: '01/01/5025',
+      currentGalacticPos: 'SKAER-5'
     };
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2));
   }
@@ -132,28 +149,28 @@ function initializeManna() {
       balance: 1500,
       transactions: [
         {
-          id: crypto.randomUUID(),
+          id: helpers.generateId(),
           date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
           amount: 500,
           description: 'Contract completion bonus',
           balance: 1000
         },
         {
-          id: crypto.randomUUID(),
+          id: helpers.generateId(),
           date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           amount: -200,
           description: 'Equipment maintenance costs',
           balance: 800
         },
         {
-          id: crypto.randomUUID(),
+          id: helpers.generateId(),
           date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
           amount: 750,
           description: 'Mission payment received',
           balance: 1550
         },
         {
-          id: crypto.randomUUID(),
+          id: helpers.generateId(),
           date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
           amount: -50,
           description: 'Docking fees',
@@ -286,61 +303,26 @@ fs.mkdirSync(uploadDir, { recursive: true });
 const tmpUploadDir = path.join(__dirname, 'data', 'uploads_tmp');
 fs.mkdirSync(tmpUploadDir, { recursive: true });
 
-function sanitizeEmblemBaseName(originalName) {
-  const normalized = String(originalName || '').replace(/\\/g, '/');
-  const base = path.posix.parse(normalized).name;
-
-  const safe = base
-    .replace(/[^a-z0-9_-]/gi, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  if (!safe) return null;
-
-  const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
-  return reserved.test(safe) ? `_${safe}` : safe;
-}
-
-function isSafeEmblemFilename(filename) {
-  if (typeof filename !== 'string') return false;
-  if (filename !== path.basename(filename)) return false;
-  return /^[A-Za-z0-9_-]+\.svg$/.test(filename);
-}
-
-function validateEmblem(emblem) {
-  if (emblem && emblem !== '') {
-    if (!isSafeEmblemFilename(emblem) || !fs.existsSync(path.join(uploadDir, emblem))) {
-      return { valid: false, message: 'Invalid emblem selection' };
-    }
-  }
-  return { valid: true };
-}
-
-function formatEmblemTitle(filename) {
-  return filename.replace('.svg', '').replace(/_/g, ' ');
-}
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, tmpUploadDir),
   filename: (req, file, cb) => {
     const normalized = String(file.originalname || '').replace(/\\/g, '/');
     const ext = path.posix.extname(normalized).toLowerCase();
-    cb(null, `${crypto.randomUUID()}${ext || ''}`);
+    cb(null, `${helpers.generateId()}${ext || ''}`);
   }
 });
 
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/bmp']);
-    if (!allowedTypes.has(file.mimetype)) {
+    if (!FILE_UPLOAD.ALLOWED_TYPES.has(file.mimetype)) {
       return cb(new Error('Only PNG, JPEG, and BMP images are allowed'));
     }
     cb(null, true);
   },
   limits: {
     files: 1,
-    fileSize: 10 * 1024 * 1024 // 10MB max file size
+    fileSize: FILE_UPLOAD.MAX_SIZE
   }
 });
 
@@ -355,7 +337,7 @@ app.post('/upload', (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const base = sanitizeEmblemBaseName(req.file.originalname);
+    const base = helpers.sanitizeEmblemBaseName(req.file.originalname);
     if (!base) {
       try {
         await fs.promises.unlink(req.file.path);
@@ -412,9 +394,9 @@ app.get('/', (req, res) => {
 
 app.post('/authenticate', (req, res) => {
   const password = req.body.password;
-  if (password === 'IMHOTEP') {
+  if (password === PASSWORDS.CLIENT) {
     res.redirect('/client/overview');
-  } else if (password === 'TARASQUE') {
+  } else if (password === PASSWORDS.ADMIN) {
     res.redirect('/admin');
   } else {
     res.redirect('/?error=invalid');
@@ -467,19 +449,19 @@ app.get('/admin', (req, res) => {
   const emblemFiles = fs.readdirSync(path.join(__dirname, 'logo_art'))
     .filter(file => file.endsWith('.svg'))
     .sort();
-  res.render('admin', { jobs, settings, manna, base, factions, emblems: emblemFiles, formatEmblemTitle });
+  res.render('admin', { jobs, settings, manna, base, factions, emblems: emblemFiles, formatEmblemTitle: helpers.formatEmblemTitle });
 });
 
 // API endpoints for admin operations
 app.post('/api/jobs', (req, res) => {
   const jobs = readJobs();
   const emblem = req.body.emblem;
-  const validation = validateEmblem(emblem);
+  const validation = helpers.validateEmblem(emblem, uploadDir);
   if (!validation.valid) {
     return res.status(400).json({ success: false, message: validation.message });
   }
   const newJob = {
-    id: crypto.randomUUID(),
+    id: helpers.generateId(),
     name: req.body.name,
     rank: parseInt(req.body.rank),
     client: req.body.client,
@@ -500,7 +482,7 @@ app.put('/api/jobs/:id', (req, res) => {
   const index = jobs.findIndex(j => j.id === req.params.id);
   if (index !== -1) {
     const emblem = req.body.emblem;
-    const validation = validateEmblem(emblem);
+    const validation = helpers.validateEmblem(emblem, uploadDir);
     if (!validation.valid) {
       return res.status(400).json({ success: false, message: validation.message });
     }
@@ -537,92 +519,40 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.put('/api/settings', (req, res) => {
-  const portalHeading = req.body.portalHeading ?? '';
-  const unt = req.body.unt ?? '';
-  const currentGalacticPos = req.body.currentGalacticPos ?? '';
-  const colorScheme = req.body.colorScheme || 'grey';
-  const userGroup = req.body.userGroup ?? '';
-  
-  // Validate portal heading (max length 100 characters)
-  const trimmedPortalHeading = (typeof portalHeading === 'string' ? portalHeading : '').trim();
-  if (trimmedPortalHeading.length === 0) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Portal Heading cannot be empty' 
-    });
-  }
-  if (trimmedPortalHeading.length > 100) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Portal Heading must be 100 characters or less' 
-    });
+  // Validate portal heading
+  const headingValidation = helpers.validateRequiredString(req.body.portalHeading, 'Portal Heading', 100);
+  if (!headingValidation.valid) {
+    return res.status(400).json({ success: false, message: headingValidation.message });
   }
   
   // Validate color scheme
-  const validColorSchemes = ['grey', 'orange', 'green', 'blue'];
-  if (!validColorSchemes.includes(colorScheme)) {
+  const colorScheme = req.body.colorScheme || 'grey';
+  if (!helpers.isValidColorScheme(colorScheme)) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Invalid color scheme. Must be one of: grey, orange, green, blue' 
+      message: `Invalid color scheme. Must be one of: ${helpers.VALID_COLOR_SCHEMES.join(', ')}` 
     });
   }
   
-  // Validate userGroup (max length 100 characters)
-  const trimmedUserGroup = (typeof userGroup === 'string' ? userGroup : '').trim();
-  if (trimmedUserGroup.length === 0) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'User Group cannot be empty' 
-    });
-  }
-  if (trimmedUserGroup.length > 100) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'User Group must be 100 characters or less' 
-    });
+  // Validate user group
+  const userGroupValidation = helpers.validateRequiredString(req.body.userGroup, 'User Group', 100);
+  if (!userGroupValidation.valid) {
+    return res.status(400).json({ success: false, message: userGroupValidation.message });
   }
   
-  // Validate UNT date format (DD/MM/YYYY)
-  const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
-  if (unt && !datePattern.test(unt)) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Invalid date format. Use DD/MM/YYYY' 
-    });
-  }
-  
-  // Validate date values if provided
-  if (unt && datePattern.test(unt)) {
-    const [day, month, year] = unt.split('/').map(Number);
-    if (month < 1 || month > 12 || day < 1) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid date values. Day must be at least 1, month must be 1-12' 
-      });
-    }
-    
-    // Check days per month
-    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    // Check for leap year
-    const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-    if (month === 2 && isLeapYear) {
-      daysInMonth[1] = 29;
-    }
-    
-    if (day > daysInMonth[month - 1]) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Invalid day for month ${month}. Maximum is ${daysInMonth[month - 1]} days.`
-      });
-    }
+  // Validate UNT date format
+  const unt = req.body.unt ?? '';
+  const dateValidation = helpers.validateDate(unt);
+  if (!dateValidation.valid) {
+    return res.status(400).json({ success: false, message: dateValidation.message });
   }
   
   const settings = {
-    portalHeading: trimmedPortalHeading,
+    portalHeading: headingValidation.value,
     unt: unt.trim(),
-    currentGalacticPos: currentGalacticPos.trim(),
+    currentGalacticPos: (req.body.currentGalacticPos ?? '').trim(),
     colorScheme: colorScheme,
-    userGroup: trimmedUserGroup
+    userGroup: userGroupValidation.value
   };
   
   writeSettings(settings);
@@ -634,7 +564,7 @@ app.delete('/api/emblems/:filename', async (req, res) => {
   const filename = req.params.filename;
   
   // Validate filename
-  if (!isSafeEmblemFilename(filename)) {
+  if (!helpers.isSafeEmblemFilename(filename)) {
     return res.status(400).json({ 
       success: false, 
       message: 'Invalid emblem filename' 
@@ -708,7 +638,7 @@ app.put('/api/manna', (req, res) => {
   // Add transaction if amount is provided
   if (amount !== 0 && description) {
     manna.transactions.push({
-      id: crypto.randomUUID(),
+      id: helpers.generateId(),
       date: new Date().toISOString(),
       amount: amount,
       description: description,
@@ -735,7 +665,7 @@ app.post('/api/manna/transaction', (req, res) => {
   manna.balance += amount;
   
   manna.transactions.push({
-    id: crypto.randomUUID(),
+    id: helpers.generateId(),
     date: new Date().toISOString(),
     amount: amount,
     description: description.trim(),
@@ -823,10 +753,10 @@ app.get('/api/base', (req, res) => {
 app.put('/api/base', (req, res) => {
   const modules = req.body.modules;
   
-  if (!Array.isArray(modules) || modules.length !== 15) {
+  if (!Array.isArray(modules) || modules.length !== BASE_MODULES.TOTAL_COUNT) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Base must have exactly 15 modules' 
+      message: `Base must have exactly ${BASE_MODULES.TOTAL_COUNT} modules` 
     });
   }
   
@@ -841,42 +771,38 @@ app.get('/api/factions', (req, res) => {
 });
 
 app.post('/api/factions', (req, res) => {
-  // Validate title and brief
-  if (!req.body.title || !req.body.title.trim()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Faction title is required' 
-    });
+  // Validate title
+  const titleValidation = helpers.validateRequiredString(req.body.title, 'Faction title');
+  if (!titleValidation.valid) {
+    return res.status(400).json({ success: false, message: titleValidation.message });
   }
   
-  if (!req.body.brief || !req.body.brief.trim()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Faction brief is required' 
-    });
+  // Validate brief
+  const briefValidation = helpers.validateRequiredString(req.body.brief, 'Faction brief');
+  if (!briefValidation.valid) {
+    return res.status(400).json({ success: false, message: briefValidation.message });
   }
   
+  // Validate emblem
   const emblem = req.body.emblem;
-  const validation = validateEmblem(emblem);
-  if (!validation.valid) {
-    return res.status(400).json({ success: false, message: validation.message });
+  const emblemValidation = helpers.validateEmblem(emblem, uploadDir);
+  if (!emblemValidation.valid) {
+    return res.status(400).json({ success: false, message: emblemValidation.message });
   }
   
-  const standing = parseInt(req.body.standing) || 0;
-  if (standing < 0 || standing > 4) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Standing must be between 0 and 4' 
-    });
+  // Validate standing
+  const standingValidation = helpers.validateInteger(req.body.standing, 'Standing', 0, 4);
+  if (!standingValidation.valid) {
+    return res.status(400).json({ success: false, message: standingValidation.message });
   }
   
   const factions = readFactions();
   const newFaction = {
-    id: crypto.randomUUID(),
-    title: req.body.title.trim(),
+    id: helpers.generateId(),
+    title: titleValidation.value,
     emblem: emblem,
-    brief: req.body.brief.trim(),
-    standing: standing,
+    brief: briefValidation.value,
+    standing: standingValidation.value,
     jobsCompleted: parseInt(req.body.jobsCompleted) || 0,
     jobsFailed: parseInt(req.body.jobsFailed) || 0
   };
@@ -893,41 +819,37 @@ app.put('/api/factions/:id', (req, res) => {
     return res.status(404).json({ success: false, message: 'Faction not found' });
   }
   
-  // Validate title and brief
-  if (!req.body.title || !req.body.title.trim()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Faction title is required' 
-    });
+  // Validate title
+  const titleValidation = helpers.validateRequiredString(req.body.title, 'Faction title');
+  if (!titleValidation.valid) {
+    return res.status(400).json({ success: false, message: titleValidation.message });
   }
   
-  if (!req.body.brief || !req.body.brief.trim()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Faction brief is required' 
-    });
+  // Validate brief
+  const briefValidation = helpers.validateRequiredString(req.body.brief, 'Faction brief');
+  if (!briefValidation.valid) {
+    return res.status(400).json({ success: false, message: briefValidation.message });
   }
   
+  // Validate emblem
   const emblem = req.body.emblem;
-  const validation = validateEmblem(emblem);
-  if (!validation.valid) {
-    return res.status(400).json({ success: false, message: validation.message });
+  const emblemValidation = helpers.validateEmblem(emblem, uploadDir);
+  if (!emblemValidation.valid) {
+    return res.status(400).json({ success: false, message: emblemValidation.message });
   }
   
-  const standing = parseInt(req.body.standing) || 0;
-  if (standing < 0 || standing > 4) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Standing must be between 0 and 4' 
-    });
+  // Validate standing
+  const standingValidation = helpers.validateInteger(req.body.standing, 'Standing', 0, 4);
+  if (!standingValidation.valid) {
+    return res.status(400).json({ success: false, message: standingValidation.message });
   }
   
   factions[index] = {
     id: req.params.id,
-    title: req.body.title.trim(),
+    title: titleValidation.value,
     emblem: emblem,
-    brief: req.body.brief.trim(),
-    standing: standing,
+    brief: briefValidation.value,
+    standing: standingValidation.value,
     jobsCompleted: parseInt(req.body.jobsCompleted) || 0,
     jobsFailed: parseInt(req.body.jobsFailed) || 0
   };
