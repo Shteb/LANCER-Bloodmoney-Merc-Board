@@ -33,6 +33,9 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
    - **CLIENT Mode**: Enter `IMHOTEP` (view-only access)
    - **ADMIN Mode**: Enter `TARASQUE` (full management access)
 
+## Updating
+At the same folder level you ran `npm install`, now run `git pull`.
+
 ### Login
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
