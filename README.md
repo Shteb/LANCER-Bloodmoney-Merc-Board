@@ -40,19 +40,19 @@ At the same folder level you ran `npm install`, now run `git pull`.
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
 ### Overview Page
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/38c364ac-c0b7-4dab-a30b-1900c44e8a2e" />
+<img width="1280" height="885" alt="image" src="https://github.com/user-attachments/assets/e3ba4bf2-1917-4090-8c93-41b4732d4788" />
 
 ### Job Board page
-<img width="1276" height="1002" alt="image" src="https://github.com/user-attachments/assets/6be8400d-4539-434f-b17a-8e18288f4a11" />
+<img width="1280" height="844" alt="image" src="https://github.com/user-attachments/assets/b373b4fe-70bd-409d-baf9-08fcf0b6e840" />
 
 ### Base Management
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/4068086c-22c7-4c51-87e2-9ac532b09558" />
+<img width="1280" height="1341" alt="image" src="https://github.com/user-attachments/assets/a2304865-3b28-489c-8306-def436f88445" />
 
 ### Faction Relations
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/959b93d8-0ac5-4f7d-b5f4-ac838bbe38b7" />
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/d0c4cc8b-4bb0-4f2d-9c77-342ee7379a91" />
 
 ### ADMIN page
-<img src="https://github.com/user-attachments/assets/b6c936a0-8192-4501-9b80-aed059fa1917" />
+<img width="1157" height="2000" alt="image" src="https://github.com/user-attachments/assets/4cb88eaa-9325-4873-a9e1-a3dea1a49ad4" />
 
 ## Features
 
