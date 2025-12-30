@@ -13,7 +13,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Shteb/LANCER-RPG-Job-Board.git
+   git clone https://github.com/Shteb/LANCER-Bloodmoney-Merc-Board.git
    cd LANCER-Bloodmoney-Merc-Board
    ```
 
@@ -102,7 +102,7 @@ Job data is stored in `data/jobs.json` and global settings are stored in `data/s
 ## Project Structure
 
 ```
-LANCER-RPG-Job-Board/
+LANCER-Bloodmoney-Merc-Board/
 ├── server.js                  # Express server and API routes
 ├── package.json               # Project dependencies
 ├── views/

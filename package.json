@@ -1,5 +1,5 @@
 {
-  "name": "lancer-rpg-job-board",
+  "name": "lancer-Bloodmoney-Merc-board",
   "version": "1.0.0",
   "description": "A terminal-styled job board for LANCER RPG with admin and client interfaces",
   "main": "server.js",

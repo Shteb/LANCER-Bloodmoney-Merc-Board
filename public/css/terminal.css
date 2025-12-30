@@ -173,15 +173,44 @@ body.blue .job-emblem img {
   filter: invert(71%) sepia(42%) saturate(1500%) hue-rotate(180deg) brightness(100%);
 }
 
-/* Currency icon color matching for different color schemes */
-/* Grey and blue use base white filter from currency.css */
+/* Shared emblem styles for jobs and factions */
+.faction-emblem {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 68px;
+  height: 68px;
+  z-index: 0;
+}
 
+.job-emblem img,
+.faction-emblem img {
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
+}
+
+/* Color scheme filters for all emblems and currency icons */
+body.grey .job-emblem img,
+body.grey .faction-emblem img {
+  filter: invert(100%);
+}
+
+body.orange .job-emblem img,
+body.orange .faction-emblem img,
 body.orange .currency-icon {
   filter: invert(71%) sepia(85%) saturate(1500%) hue-rotate(350deg) brightness(100%);
 }
 
+body.green .job-emblem img,
+body.green .faction-emblem img,
 body.green .currency-icon {
   filter: invert(71%) sepia(85%) saturate(3000%) hue-rotate(80deg) brightness(100%);
+}
+
+body.blue .job-emblem img,
+body.blue .faction-emblem img {
+  filter: invert(71%) sepia(42%) saturate(1500%) hue-rotate(180deg) brightness(100%);
 }
 
 .job-card-header {
@@ -236,9 +265,9 @@ body.green .currency-icon {
 }
 
 
-/* Blinking cursor effect */
-h1::after,
-p::after {
+/* Blinking cursor effect - only for landing page headings */
+.landing-container h1::after,
+.landing-container p::after {
   content: '';
   animation: blink 1s step-end infinite;
 }
