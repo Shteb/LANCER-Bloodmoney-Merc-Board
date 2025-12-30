@@ -14,7 +14,7 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/Shteb/LANCER-RPG-Job-Board.git
-   cd LANCER-RPG-Job-Board
+   cd LANCER-Bloodmoney-Merc-Board
    ```
 
 2. **Install dependencies**:
