@@ -2,24 +2,6 @@
 
 A terminal-styled web application for managing and viewing LANCER RPG job postings. Features password-gated access with separate client and admin interfaces.
 
-### Login
-<img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
-
-### Overview Page
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/38c364ac-c0b7-4dab-a30b-1900c44e8a2e" />
-
-### Job Board page
-<img width="1276" height="1002" alt="image" src="https://github.com/user-attachments/assets/6be8400d-4539-434f-b17a-8e18288f4a11" />
-
-### Base Management
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/4068086c-22c7-4c51-87e2-9ac532b09558" />
-
-### Faction Relations
-<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/959b93d8-0ac5-4f7d-b5f4-ac838bbe38b7" />
-
-### ADMIN page
-<img src="https://github.com/user-attachments/assets/b6c936a0-8192-4501-9b80-aed059fa1917" />
-
 ## How to Run Locally
 0. **You will need Node Package Manager (NPM) and therefore Node.js to use this.** 
 
@@ -46,6 +28,24 @@ A terminal-styled web application for managing and viewing LANCER RPG job postin
 5. **Login** with one of the following access codes:
    - **CLIENT Mode**: Enter `IMHOTEP` (view-only access)
    - **ADMIN Mode**: Enter `TARASQUE` (full management access)
+
+### Login
+<img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
+
+### Overview Page
+<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/38c364ac-c0b7-4dab-a30b-1900c44e8a2e" />
+
+### Job Board page
+<img width="1276" height="1002" alt="image" src="https://github.com/user-attachments/assets/6be8400d-4539-434f-b17a-8e18288f4a11" />
+
+### Base Management
+<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/4068086c-22c7-4c51-87e2-9ac532b09558" />
+
+### Faction Relations
+<img width="920" height="916" alt="image" src="https://github.com/user-attachments/assets/959b93d8-0ac5-4f7d-b5f4-ac838bbe38b7" />
+
+### ADMIN page
+<img src="https://github.com/user-attachments/assets/b6c936a0-8192-4501-9b80-aed059fa1917" />
 
 ## Features
 
