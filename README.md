@@ -56,10 +56,6 @@ At the same folder level you ran `npm install`, now run `git pull`.
 
 ## Features
 
-Here's a simplified, non-technical summary of the application's features:
-
-## LANCER Bloodmoney Merc Board - User Features
-
 ### Visual Style
 - **4 color themes** to choose from (Grey, Orange, Green, Blue)
 
