@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/pilot.schema.json",
+  "title": "Pilot",
+  "description": "A pilot in the mercenary company roster",
+  "type": "object",
+  "required": ["id", "name", "callsign", "ll", "reserves", "active", "relatedJobs", "personalOperationProgress", "personalTransactions"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "description": "Pilot name",
+      "minLength": 1
+    },
+    "callsign": {
+      "type": "string",
+      "description": "Pilot callsign",
+      "minLength": 1
+    },
+    "ll": {
+      "type": "number",
+      "description": "License Level (0-12)",
+      "minimum": 0,
+      "maximum": 12,
+      "multipleOf": 1
+    },
+    "reserves": {
+      "type": "string",
+      "description": "Reserves/notes (multiline text, can be empty)"
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Active/inactive status"
+    },
+    "relatedJobs": {
+      "type": "array",
+      "description": "Array of job UUIDs (non-Pending jobs only)",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "personalOperationProgress": {
+      "type": "number",
+      "description": "Personal operation progress level (0-3)",
+      "minimum": 0,
+      "maximum": 3,
+      "multipleOf": 1
+    },
+    "personalTransactions": {
+      "type": "array",
+      "description": "Array of transaction UUIDs representing pilot's personal transaction history",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "notes": [
+    "One-way relationship: pilots reference transactions, transactions do NOT reference pilots",
+    "Many-to-many: any transaction can be referenced by multiple pilots",
+    "Each pilot's balance is calculated by summing amounts of their associated transactions",
+    "Validation ensures all referenced transaction UUIDs exist in manna.transactions"
+  ]
+}

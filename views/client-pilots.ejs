@@ -46,6 +46,8 @@
         });
         
         sortedPilots.forEach(pilot => { 
+          // Balance is already calculated server-side
+          const pilotBalance = pilot.balance || 0;
       %>
         <div class="pilot-card <%= pilot.active ? 'active' : 'inactive' %>" data-pilot-id="<%= pilot.id %>">
           <div class="pilot-status <%= pilot.active ? 'active' : 'inactive' %>">
@@ -69,6 +71,14 @@
             <div class="pilot-ll">LICENSE_LEVEL: <%= pilot.ll %></div>
           </div>
           
+          <div class="pilot-field pilot-balance-field">
+            <div class="pilot-balance-left">
+              <span class="field-label">BALANCE:</span>
+              <span class="field-value"><%= pilotBalance %> <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+            </div>
+            <button class="balance-history-link" onclick="openPilotBalanceHistory('<%= pilot.id %>', event)">[BALANCE_HISTORY]</button>
+          </div>
+          
           <div class="pilot-field">
             <span class="field-label">RESERVES:</span>
             <span class="field-value" style="white-space: pre-line;"><%= pilot.reserves || 'NO_DATA' %></span>
@@ -90,10 +100,11 @@
   <script src="/js/shared-handlers.js"></script>
   <script src="/js/sse-client.js"></script>
   <script>
-    // Store current pilots, jobs, factions, and settings data
+    // Store current pilots, jobs, factions, manna, and settings data
     let currentPilots = <%- JSON.stringify(pilots) %>;
     let currentJobs = [];
     let currentFactions = [];
+    let currentManna = <%- JSON.stringify(manna) %>;
     let currentSettings = <%- JSON.stringify(settings) %>;
     
     // Fetch initial jobs and factions data
@@ -108,11 +119,35 @@
       }
     }
     
+    // Handle manna update from SSE
+    function handleMannaUpdate(data) {
+      if (data && data.manna) {
+        currentManna = data.manna;
+        // Manna changes affect pilot balances, so refetch pilots with updated balances
+        fetch('/api/pilots')
+          .then(response => response.json())
+          .then(pilots => {
+            // Update currentPilots with freshly fetched data and re-render
+            currentPilots = pilots;
+            renderPilots(pilots);
+          })
+          .catch(() => {
+            // If refetch fails, re-render with existing data
+            renderPilots(currentPilots);
+          });
+      }
+    }
+    
     // Handle jobs update from SSE
     function handleJobsUpdate(data) {
       if (data && data.jobs) {
         currentJobs = data.jobs;
       }
+    }
+    
+    // Get pilot balance (precomputed server-side)
+    function getPilotBalance(pilot) {
+      return pilot && typeof pilot.balance === 'number' ? pilot.balance : 0;
     }
     
     // Render pilots grid
@@ -157,6 +192,7 @@
           const reservesB64 = btoa(pilot.reserves || '');
           const escapedNameForOnclick = pilot.name.replace(/'/g, "\\'");
           const personalProgress = pilot.personalOperationProgress || 0;
+          const pilotBalance = getPilotBalance(pilot);
           
           // Build personal progress HTML if openTable is enabled
           let personalProgressHtml = '';
@@ -185,6 +221,14 @@
                 <h2>> ${pilot.name}</h2>
                 <div class="pilot-callsign">CALLSIGN: ${pilot.callsign}</div>
                 <div class="pilot-ll">LICENSE_LEVEL: ${pilot.ll}</div>
+              </div>
+              
+              <div class="pilot-field pilot-balance-field">
+                <div class="pilot-balance-left">
+                  <span class="field-label">BALANCE:</span>
+                  <span class="field-value">${pilotBalance} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+                </div>
+                <button class="balance-history-link" onclick="openPilotBalanceHistory('${pilot.id}', event)">[BALANCE_HISTORY]</button>
               </div>
               
               <div class="pilot-field">
@@ -293,6 +337,74 @@
       jobListModal.classList.add('active');
     }
     
+    // Open pilot balance history modal
+    function openPilotBalanceHistory(pilotId, event) {
+      // Prevent default if called from an event
+      if (event && event.preventDefault) {
+        event.preventDefault();
+      }
+      
+      const pilot = currentPilots.find(p => p.id === pilotId);
+      if (!pilot) return;
+      
+      const pilotName = pilot.name || 'Unknown Pilot';
+      
+      // Filter transactions for this pilot with null checks
+      const pilotTransactionIds = pilot.personalTransactions || [];
+      if (!currentManna || !currentManna.transactions) {
+        // Show empty state if manna data not available
+        const balanceHistoryModal = document.getElementById('balance-history-modal');
+        const balanceHistoryTitle = document.getElementById('balance-history-title');
+        const balanceHistoryContainer = document.getElementById('balance-history-container');
+        
+        balanceHistoryTitle.textContent = `${pilotName} - BALANCE HISTORY`;
+        balanceHistoryContainer.innerHTML = '<p style="text-align: center; opacity: 0.7;">> NO_TRANSACTIONS_FOUND_</p>';
+        balanceHistoryModal.classList.add('active');
+        return;
+      }
+      
+      const pilotTransactions = currentManna.transactions
+        .filter(t => pilotTransactionIds.includes(t.id))
+        .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort oldest to newest
+      
+      // Calculate running balance
+      let runningBalance = 0;
+      const transactionsWithBalance = pilotTransactions.map(transaction => {
+        runningBalance += transaction.amount;
+        return {
+          ...transaction,
+          pilotBalance: runningBalance
+        };
+      }).reverse(); // Reverse to show newest first
+      
+      const balanceHistoryModal = document.getElementById('balance-history-modal');
+      const balanceHistoryTitle = document.getElementById('balance-history-title');
+      const balanceHistoryContainer = document.getElementById('balance-history-container');
+      
+      balanceHistoryTitle.textContent = `${pilotName} - BALANCE HISTORY`;
+      
+      if (transactionsWithBalance.length === 0) {
+        balanceHistoryContainer.innerHTML = '<p style="text-align: center; opacity: 0.7;">> NO_TRANSACTIONS_FOUND_</p>';
+      } else {
+        balanceHistoryContainer.innerHTML = transactionsWithBalance.map(transaction => {
+          const date = new Date(transaction.date).toLocaleString();
+          const amountClass = transaction.amount >= 0 ? 'positive' : 'negative';
+          const amountPrefix = transaction.amount >= 0 ? '+' : '';
+          
+          return `
+            <div class="transaction-item-horizontal">
+              <span class="transaction-date">${date}</span>
+              <span class="transaction-amount ${amountClass}">${amountPrefix}${transaction.amount} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+              <span class="transaction-description">${transaction.description}</span>
+              <span class="transaction-balance">BALANCE: ${transaction.pilotBalance} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      balanceHistoryModal.classList.add('active');
+    }
+    
     // Initialize modal handlers on page load
     initializeModalHandlers();
   </script>
@@ -335,6 +447,19 @@
       </div>
       <div class="modal-body">
         <div id="job-details-container"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Balance History Modal -->
+  <div id="balance-history-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="balance-history-title">BALANCE HISTORY</h2>
+        <button class="modal-close" onclick="closeModal('balance-history-modal')">[X]</button>
+      </div>
+      <div class="modal-body">
+        <div id="balance-history-container" class="balance-history-list"></div>
       </div>
     </div>
   </div>

@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/base-module.schema.json",
+  "title": "BaseModule",
+  "description": "A base module in the mercenary company base",
+  "type": "object",
+  "required": ["type", "title", "description", "disabled"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "description": "Module type",
+      "enum": ["Core", "Major", "Minor"]
+    },
+    "title": {
+      "type": "string",
+      "description": "Module title (string, can be empty)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Module description (string, can be empty)"
+    },
+    "disabled": {
+      "type": "boolean",
+      "description": "Whether the module is disabled (last 2 minor modules can be toggled)"
+    }
+  },
+  "additionalProperties": false
+}

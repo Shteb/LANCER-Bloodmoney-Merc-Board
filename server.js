@@ -61,8 +61,13 @@ function initializeSettings() {
 }
 
 // Initialize data file with dummy data if it doesn't exist
+// Note: Must be called after initializeFactions() to reference faction IDs
 function initializeData() {
   if (!fs.existsSync(DATA_FILE)) {
+    // Read factions to get IDs for job assignments
+    const factions = readFactions();
+    const factionIds = factions.map(f => f.id);
+    
     const dummyJobs = [
       {
         id: helpers.generateId(),
@@ -75,7 +80,7 @@ function initializeData() {
         additionalPay: 'Duis aute irure dolor in reprehenderit',
         emblem: 'birds.svg',
         state: 'Active',
-        factionId: ''
+        factionId: factionIds[0] || '' // Conglomerate Finibus
       },
       {
         id: helpers.generateId(),
@@ -88,7 +93,7 @@ function initializeData() {
         additionalPay: 'Totam rem aperiam',
         emblem: 'sun.svg',
         state: 'Active',
-        factionId: ''
+        factionId: factionIds[1] || '' // Shimano Industries
       },
       {
         id: helpers.generateId(),
@@ -101,7 +106,46 @@ function initializeData() {
         additionalPay: 'Sed quia non numquam eius modi tempora',
         emblem: 'triangle.svg',
         state: 'Pending',
-        factionId: ''
+        factionId: factionIds[2] || '' // Collective Malorum
+      },
+      {
+        id: helpers.generateId(),
+        name: 'Voluptate Velit Esse',
+        rank: 2,
+        jobType: 'Cillum dolore',
+        description: 'At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque.',
+        clientBrief: 'Corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.',
+        currencyPay: '180m',
+        additionalPay: '',
+        emblem: 'cosmetics.svg',
+        state: 'Complete',
+        factionId: factionIds[3] || '' // Phoenix Syndicate
+      },
+      {
+        id: helpers.generateId(),
+        name: 'Fugiat Nulla Pariatur',
+        rank: 1,
+        jobType: 'Similique sunt',
+        description: 'Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime.',
+        clientBrief: 'Placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.',
+        currencyPay: '95m',
+        additionalPay: 'Equipment bonus',
+        emblem: 'rings.svg',
+        state: 'Failed',
+        factionId: factionIds[4] || '' // Void Runners
+      },
+      {
+        id: helpers.generateId(),
+        name: 'Quis Autem Vel Eum',
+        rank: 3,
+        jobType: 'Iure reprehenderit',
+        description: 'Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates.',
+        clientBrief: 'Repudiandae sint et molestiae non recusandae itaque earum rerum hic tenetur a sapiente delectus.',
+        currencyPay: '300m',
+        additionalPay: 'Priority extraction available',
+        emblem: 'engineering.svg',
+        state: 'Ignored',
+        factionId: factionIds[0] || '' // Conglomerate Finibus
       }
     ];
     fs.writeFileSync(DATA_FILE, JSON.stringify(dummyJobs, null, 2));
@@ -174,6 +218,14 @@ function enrichAllFactions(factions, jobs) {
   return factions.map(faction => helpers.enrichFactionWithJobCounts(faction, jobs));
 }
 
+// Helper function to enrich pilots with balance information
+function enrichPilotsWithBalance(pilots, manna) {
+  return pilots.map(pilot => ({
+    ...pilot,
+    balance: helpers.calculatePilotBalance(pilot, manna.transactions)
+  }));
+}
+
 // Helper function to validate job data
 function validateJobData(jobData, factions, uploadDir) {
   // Validate emblem
@@ -242,8 +294,48 @@ function validateFactionData(factionData, uploadDir) {
   };
 }
 
-// Helper function to validate pilot data
-function validatePilotData(pilotData) {
+// Helper function to calculate balances from pilot transactions
+function calculateBalancesFromPilots() {
+  const pilots = readPilots();
+  const manna = readManna();
+  
+  // Create a map of transactions by ID for quick lookup
+  const transactionMap = {};
+  manna.transactions.forEach(txn => {
+    transactionMap[txn.id] = txn.amount;
+  });
+  
+  let activeBalance = 0;
+  let totalBalance = 0;
+  
+  pilots.forEach(pilot => {
+    let pilotBalance = 0;
+    
+    // Sum up all transactions for this pilot
+    if (pilot.personalTransactions && Array.isArray(pilot.personalTransactions)) {
+      pilot.personalTransactions.forEach(txnId => {
+        if (transactionMap[txnId] !== undefined) {
+          pilotBalance += transactionMap[txnId];
+        }
+      });
+    }
+    
+    totalBalance += pilotBalance;
+    if (pilot.active) {
+      activeBalance += pilotBalance;
+    }
+  });
+  
+  return { activeBalance, totalBalance };
+}
+
+/**
+ * Helper function to validate pilot data
+ * @param {Object} pilotData - Raw pilot data from the request body
+ * @param {Object} manna - Current manna data (balance and transactions) used for validating pilot-related transactions
+ * @returns {Object} Validation result with sanitized pilot fields when valid, or an error message when invalid
+ */
+function validatePilotData(pilotData, manna) {
   // Validate name
   const nameValidation = helpers.validateRequiredString(pilotData.name, 'Pilot name');
   if (!nameValidation.valid) {
@@ -286,6 +378,25 @@ function validatePilotData(pilotData) {
     }
   }
   
+  // Validate personalTransactions array if provided
+  let personalTransactions = [];
+  if (pilotData.personalTransactions) {
+    try {
+      personalTransactions = Array.isArray(pilotData.personalTransactions) ? pilotData.personalTransactions : JSON.parse(pilotData.personalTransactions);
+      if (!Array.isArray(personalTransactions)) {
+        return { valid: false, message: 'Personal transactions must be an array' };
+      }
+      
+      // Validate that all transaction UUIDs exist in manna data
+      const transactionValidation = helpers.validateTransactionIds(personalTransactions, manna);
+      if (!transactionValidation.valid) {
+        return { valid: false, message: transactionValidation.message };
+      }
+    } catch (e) {
+      return { valid: false, message: 'Invalid personal transactions format' };
+    }
+  }
+  
   return {
     valid: true,
     name: nameValidation.value,
@@ -294,7 +405,8 @@ function validatePilotData(pilotData) {
     reserves: (pilotData.reserves || '').trim(),
     active: pilotData.active === 'true' || pilotData.active === true,
     relatedJobs: relatedJobs,
-    personalOperationProgress: progressValidation.value
+    personalOperationProgress: progressValidation.value,
+    personalTransactions: personalTransactions
   };
 }
 
@@ -330,28 +442,42 @@ function writeSettings(settings) {
 function initializeManna() {
   if (!fs.existsSync(MANNA_FILE)) {
     const defaultManna = {
-      balance: 1300,
       transactions: [
         {
           id: helpers.generateId(),
-          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
           amount: 500,
-          description: 'Lorem ipsum dolor sit',
-          balance: 800
+          description: 'Initial mission payment - Lorem Sector'
+        },
+        {
+          id: helpers.generateId(),
+          date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+          amount: -200,
+          description: 'Equipment repairs and ammunition resupply'
+        },
+        {
+          id: helpers.generateId(),
+          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          amount: 700,
+          description: 'Bonus payment - Successful extraction mission'
         },
         {
           id: helpers.generateId(),
           date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: -200,
-          description: 'Consectetur adipiscing',
-          balance: 600
+          amount: -150,
+          description: 'Medical expenses and pilot recovery'
         },
         {
           id: helpers.generateId(),
           date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: 700,
-          description: 'Sed do eiusmod tempor',
-          balance: 1300
+          amount: 400,
+          description: 'Contract completion - Shimano Industries'
+        },
+        {
+          id: helpers.generateId(),
+          date: new Date().toISOString(),
+          amount: -100,
+          description: 'Fuel and transport costs'
         }
       ]
     };
@@ -365,13 +491,36 @@ function readManna() {
     const data = fs.readFileSync(MANNA_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    return { balance: 0, transactions: [] };
+    return { transactions: [] };
   }
 }
 
 // Write Manna data
 function writeManna(manna) {
   fs.writeFileSync(MANNA_FILE, JSON.stringify(manna, null, 2));
+}
+
+// Migrate transactions to ensure all have UUIDs (one-time operation)
+function migrateTransactionsIfNeeded() {
+  const manna = readManna();
+  let needsMigration = false;
+  
+  const migratedTransactions = manna.transactions.map(transaction => {
+    if (!transaction.id) {
+      needsMigration = true;
+      return {
+        ...transaction,
+        id: helpers.generateId()
+      };
+    }
+    return transaction;
+  });
+  
+  if (needsMigration) {
+    manna.transactions = migratedTransactions;
+    writeManna(manna);
+    console.log('Transactions migrated to include UUID fields');
+  }
 }
 
 // Initialize Base modules
@@ -424,7 +573,7 @@ function initializeFactions() {
   if (!fs.existsSync(FACTIONS_FILE)) {
     const defaultFactions = [
       {
-        id: '1',
+        id: helpers.generateId(),
         title: 'Conglomerate Finibus',
         emblem: 'construction.svg',
         brief: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
@@ -433,7 +582,7 @@ function initializeFactions() {
         jobsFailedOffset: 1
       },
       {
-        id: '2',
+        id: helpers.generateId(),
         title: 'Shimano Industries',
         emblem: 'cosmetics.svg',
         brief: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
@@ -442,13 +591,31 @@ function initializeFactions() {
         jobsFailedOffset: 0
       },
       {
-        id: '3',
+        id: helpers.generateId(),
         title: 'Collective Malorum',
         emblem: 'engineering.svg',
         brief: 'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
         standing: 1,
         jobsCompletedOffset: 1,
         jobsFailedOffset: 2
+      },
+      {
+        id: helpers.generateId(),
+        title: 'Phoenix Syndicate',
+        emblem: 'birds.svg',
+        brief: 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+        standing: 4,
+        jobsCompletedOffset: 8,
+        jobsFailedOffset: 0
+      },
+      {
+        id: helpers.generateId(),
+        title: 'Void Runners',
+        emblem: 'rings.svg',
+        brief: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.',
+        standing: 0,
+        jobsCompletedOffset: 0,
+        jobsFailedOffset: 3
       }
     ];
     fs.writeFileSync(FACTIONS_FILE, JSON.stringify(defaultFactions, null, 2));
@@ -506,8 +673,18 @@ function migrateFactionsIfNeeded() {
 }
 
 // Initialize Pilots
+// Note: Must be called after initializeData() and initializeManna() to reference job and transaction IDs
 function initializePilots() {
   if (!fs.existsSync(PILOTS_FILE)) {
+    // Read jobs and transactions to get IDs for assignments
+    const jobs = readJobs();
+    const manna = readManna();
+    const jobIds = jobs.map(j => j.id);
+    const transactionIds = manna.transactions.map(t => t.id);
+    
+    // Filter to only non-Pending jobs for relatedJobs (as per schema)
+    const activeJobIds = jobs.filter(j => j.state !== 'Pending').map(j => j.id);
+    
     const defaultPilots = [
       {
         id: helpers.generateId(),
@@ -516,8 +693,9 @@ function initializePilots() {
         ll: 3,
         reserves: 'Lorem ipsum dolor sit amet\nConsectetur adipiscing elit',
         active: true,
-        relatedJobs: [],
-        personalOperationProgress: 2
+        relatedJobs: activeJobIds.slice(0, 3), // First 3 non-Pending jobs
+        personalOperationProgress: 2,
+        personalTransactions: [transactionIds[0], transactionIds[2], transactionIds[4]] // Transactions 0, 2, 4
       },
       {
         id: helpers.generateId(),
@@ -526,8 +704,9 @@ function initializePilots() {
         ll: 5,
         reserves: 'Sed do eiusmod tempor\nIncididunt ut labore',
         active: true,
-        relatedJobs: [],
-        personalOperationProgress: 0
+        relatedJobs: activeJobIds.slice(1, 4), // Jobs 1-3 (non-Pending)
+        personalOperationProgress: 0,
+        personalTransactions: [transactionIds[0], transactionIds[1], transactionIds[3], transactionIds[5]] // Multiple transactions
       },
       {
         id: helpers.generateId(),
@@ -536,8 +715,31 @@ function initializePilots() {
         ll: 2,
         reserves: 'Ut enim ad minim veniam\nQuis nostrud exercitation',
         active: false,
-        relatedJobs: [],
-        personalOperationProgress: 0
+        relatedJobs: activeJobIds.slice(0, 2), // First 2 non-Pending jobs
+        personalOperationProgress: 0,
+        personalTransactions: [transactionIds[2], transactionIds[3]] // Some transactions
+      },
+      {
+        id: helpers.generateId(),
+        name: 'Veniam Quis',
+        callsign: 'Nostrud',
+        ll: 7,
+        reserves: 'Duis aute irure dolor\nReprehenderit in voluptate',
+        active: true,
+        relatedJobs: activeJobIds.slice(2, 5), // Jobs 2-4 (non-Pending)
+        personalOperationProgress: 1,
+        personalTransactions: [transactionIds[1], transactionIds[4]] // Some transactions
+      },
+      {
+        id: helpers.generateId(),
+        name: 'Ullamco Laboris',
+        callsign: 'Nisi',
+        ll: 4,
+        reserves: 'Excepteur sint occaecat\nCupidatat non proident',
+        active: true,
+        relatedJobs: activeJobIds.slice(0, 2), // First 2 non-Pending jobs
+        personalOperationProgress: 3,
+        personalTransactions: [transactionIds[2], transactionIds[5]] // Some transactions
       }
     ];
     fs.writeFileSync(PILOTS_FILE, JSON.stringify(defaultPilots, null, 2));
@@ -559,19 +761,21 @@ function writePilots(pilots) {
   fs.writeFileSync(PILOTS_FILE, JSON.stringify(pilots, null, 2));
 }
 
-// Migrate old pilots to add personalOperationProgress field (one-time operation)
+// Migrate old pilots to add personalOperationProgress and personalTransactions fields (one-time operation)
 function migratePilotsIfNeeded() {
   const pilots = readPilots();
   let needsMigration = false;
   
   const migratedPilots = pilots.map(pilot => {
     const progressMissing = !pilot.hasOwnProperty('personalOperationProgress');
+    const transactionsMissing = !pilot.hasOwnProperty('personalTransactions');
     
-    if (progressMissing) {
+    if (progressMissing || transactionsMissing) {
       needsMigration = true;
       return {
         ...pilot,
-        personalOperationProgress: 0
+        personalOperationProgress: pilot.personalOperationProgress ?? 0,
+        personalTransactions: pilot.personalTransactions ?? []
       };
     }
     return pilot;
@@ -579,7 +783,7 @@ function migratePilotsIfNeeded() {
   
   if (needsMigration) {
     writePilots(migratedPilots);
-    console.log('Pilots migrated to include personalOperationProgress field');
+    console.log('Pilots migrated to include personalOperationProgress and personalTransactions fields');
   }
 }
 
@@ -670,11 +874,12 @@ app.post('/upload', (req, res) => {
 });
 
 // Initialize data on startup
-initializeData();
+// Order matters: factions before jobs, jobs and manna before pilots
 initializeSettings();
-initializeManna();
-initializeBase();
 initializeFactions();
+initializeBase();
+initializeManna();
+initializeData();
 initializePilots();
 
 // Migrate existing jobs to add new fields
@@ -683,7 +888,10 @@ migrateJobsIfNeeded();
 // Migrate existing factions to add offset fields
 migrateFactionsIfNeeded();
 
-// Migrate existing pilots to add personalOperationProgress field
+// Migrate existing transactions to add UUIDs
+migrateTransactionsIfNeeded();
+
+// Migrate existing pilots to add personalOperationProgress and personalTransactions fields
 migratePilotsIfNeeded();
 
 // SSE broadcast function
@@ -755,15 +963,56 @@ app.get('/client', (req, res) => {
 app.get('/client/overview', (req, res) => {
   const settings = readSettings();
   const manna = readManna();
-  // Get last 5 transactions
-  const recentTransactions = manna.transactions.slice(-5).reverse();
-  res.render('client-overview', { settings, colorScheme: settings.colorScheme, manna, recentTransactions });
+  const pilots = readPilots();
+  
+  // Calculate active pilot balances
+  const activePilotBalances = helpers.getActivePilotBalances(pilots, manna.transactions);
+  const totalBalance = activePilotBalances.reduce((sum, pb) => sum + pb.balance, 0);
+  
+  // Get full unique transaction history with pilot info (newest-first)
+  const allTransactions = helpers.getDeduplicatedTransactionHistory(pilots, manna.transactions, 0);
+  
+  // Calculate cumulative balances across all transactions (oldest-first for running total)
+  const sortedOldestFirst = [...allTransactions].reverse();
+  const withCumulativeOldestFirst = helpers.calculateCumulativeBalances(sortedOldestFirst);
+  
+  // Convert back to newest-first and take the last 5 for display
+  const withCumulativeNewestFirst = [...withCumulativeOldestFirst].reverse();
+  const recentWithBalance = withCumulativeNewestFirst.slice(0, 5);
+  
+  res.render('client-overview', { 
+    settings, 
+    colorScheme: settings.colorScheme, 
+    totalBalance,
+    recentTransactions: recentWithBalance
+  });
 });
 
 app.get('/client/finances', (req, res) => {
   const settings = readSettings();
   const manna = readManna();
-  res.render('client-finances', { settings, colorScheme: settings.colorScheme, manna });
+  const pilots = readPilots();
+  
+  // Calculate active pilot balances
+  const activePilotBalances = helpers.getActivePilotBalances(pilots, manna.transactions);
+  const totalBalance = activePilotBalances.reduce((sum, pb) => sum + pb.balance, 0);
+  
+  // Get all unique transactions with pilot info
+  const allTransactions = helpers.getDeduplicatedTransactionHistory(pilots, manna.transactions, 0);
+  
+  // Calculate cumulative balances (need oldest first for calculation)
+  const sortedOldestFirst = [...allTransactions].reverse();
+  const withCumulative = helpers.calculateCumulativeBalances(sortedOldestFirst);
+  
+  // Reverse back to newest first for display
+  const transactionsForDisplay = withCumulative.reverse();
+  
+  res.render('client-finances', { 
+    settings, 
+    colorScheme: settings.colorScheme, 
+    totalBalance,
+    allTransactions: transactionsForDisplay
+  });
 });
 
 app.get('/client/jobs', (req, res) => {
@@ -799,7 +1048,9 @@ app.get('/client/factions', (req, res) => {
 app.get('/client/pilots', (req, res) => {
   const settings = readSettings();
   const pilots = readPilots();
-  res.render('client-pilots', { settings, colorScheme: settings.colorScheme, pilots });
+  const manna = readManna();
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  res.render('client-pilots', { settings, colorScheme: settings.colorScheme, pilots: enrichedPilots, manna });
 });
 
 app.get('/admin', (req, res) => {
@@ -813,8 +1064,14 @@ app.get('/admin', (req, res) => {
     .filter(file => file.endsWith('.svg'))
     .sort();
   
+  // Calculate balances from pilot transactions
+  const balances = calculateBalancesFromPilots();
+  
   // Enrich factions with calculated job counts
   const enrichedFactions = enrichAllFactions(factions, jobs);
+  
+  // Enrich pilots with balance information
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
   
   // Create faction lookup map for efficient template rendering
   const factionMap = createFactionMap(enrichedFactions);
@@ -830,9 +1087,10 @@ app.get('/admin', (req, res) => {
     jobs: enrichedJobs, 
     settings, 
     manna, 
+    balances,
     base, 
     factions: enrichedFactions, 
-    pilots,
+    pilots: enrichedPilots,
     emblems: emblemFiles, 
     formatEmblemTitle: helpers.formatEmblemTitle,
     jobStates: helpers.JOB_STATES,
@@ -1070,54 +1328,31 @@ app.delete('/api/emblems/:filename', async (req, res) => {
 // Manna API endpoints
 app.get('/api/manna', (req, res) => {
   const manna = readManna();
-  res.json(manna);
-});
-
-app.put('/api/manna', (req, res) => {
-  // Validate balance parameter
-  if (req.body.balance === undefined || req.body.balance === null) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Balance is required' 
-    });
-  }
-  
-  const balance = parseInt(req.body.balance);
-  if (isNaN(balance)) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Balance must be a valid number' 
-    });
-  }
-  
-  const description = req.body.description || '';
-  const amount = parseInt(req.body.amount) || 0;
-  
-  const manna = readManna();
-  manna.balance = balance;
-  
-  // Add transaction if amount is provided
-  if (amount !== 0 && description) {
-    manna.transactions.push({
-      id: helpers.generateId(),
-      date: new Date().toISOString(),
-      amount: amount,
-      description: description,
-      balance: balance
-    });
-  }
-  
-  writeManna(manna);
-  
-  // Broadcast SSE update
-  broadcastSSE('manna', { action: 'update', manna });
-  
-  res.json({ success: true, manna });
+  const balances = calculateBalancesFromPilots();
+  res.json({ ...manna, balances });
 });
 
 app.post('/api/manna/transaction', (req, res) => {
-  const amount = parseInt(req.body.amount) || 0;
+  const rawAmount = req.body.amount;
+  const parsedAmount = Number.isInteger(rawAmount) ? rawAmount : parseInt(rawAmount, 10);
   const description = req.body.description || '';
+  let pilotIds = req.body.pilotIds || [];
+  
+  // Validate amount is a valid integer
+  if (Number.isNaN(parsedAmount)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Transaction amount must be a valid integer'
+    });
+  }
+  
+  // Validate amount is non-zero
+  if (parsedAmount === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Transaction amount must be non-zero'
+    });
+  }
   
   if (!description.trim()) {
     return res.status(400).json({ 
@@ -1126,23 +1361,74 @@ app.post('/api/manna/transaction', (req, res) => {
     });
   }
   
-  const manna = readManna();
-  manna.balance += amount;
+  // Ensure pilotIds is an array
+  if (!Array.isArray(pilotIds)) {
+    try {
+      pilotIds = JSON.parse(pilotIds);
+    } catch (e) {
+      pilotIds = [];
+    }
+  }
   
-  manna.transactions.push({
+  const manna = readManna();
+  const pilots = readPilots();
+  
+  // If no pilots specified, use all active pilots (may result in an empty list if none are active)
+  if (pilotIds.length === 0) {
+    pilotIds = pilots.filter(p => p.active).map(p => p.id);
+  } else {
+    // Validate that all provided pilot IDs exist
+    const validPilotIds = pilots.map(p => p.id);
+    const invalidPilotIds = pilotIds.filter(id => !validPilotIds.includes(id));
+    
+    if (invalidPilotIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid pilot IDs: ${invalidPilotIds.join(', ')}`
+      });
+    }
+  }
+  
+  // Create new transaction
+  const newTransaction = {
     id: helpers.generateId(),
     date: new Date().toISOString(),
-    amount: amount,
-    description: description.trim(),
-    balance: manna.balance
-  });
+    amount: parsedAmount,
+    description: description.trim()
+  };
   
+  manna.transactions.push(newTransaction);
   writeManna(manna);
   
-  // Broadcast SSE update
-  broadcastSSE('manna', { action: 'transaction', manna });
+  // Associate transaction with specified pilots
+  let updatedPilots = false;
+  pilots.forEach(pilot => {
+    if (pilotIds.includes(pilot.id)) {
+      if (!pilot.personalTransactions) {
+        pilot.personalTransactions = [];
+      }
+      pilot.personalTransactions.push(newTransaction.id);
+      updatedPilots = true;
+    }
+  });
   
-  res.json({ success: true, manna });
+  if (updatedPilots) {
+    writePilots(pilots);
+  }
+  
+  // Calculate new balances
+  const balances = calculateBalancesFromPilots();
+  
+  // Enrich pilots with balance for SSE broadcast (manna already declared above)
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  
+  // Broadcast SSE updates with enriched pilot data
+  broadcastSSE('manna', { action: 'transaction', manna, balances });
+  if (updatedPilots) {
+    broadcastSSE('pilots', { action: 'update', pilots: enrichedPilots });
+  }
+  
+  res.json({ success: true, manna, transaction: newTransaction, balances });
 });
 
 app.put('/api/manna/transaction/:id', (req, res) => {
@@ -1187,8 +1473,7 @@ app.put('/api/manna/transaction/:id', (req, res) => {
     id: req.params.id,
     date: date,
     amount: amount,
-    description: description.trim(),
-    balance: manna.transactions[transactionIndex].balance // Keep original balance
+    description: description.trim()
   };
   
   writeManna(manna);
@@ -1210,15 +1495,111 @@ app.delete('/api/manna/transaction/:id', (req, res) => {
     });
   }
   
-  // Remove the transaction without affecting the balance
-  manna.transactions.splice(transactionIndex, 1);
+  const transactionId = req.params.id;
   
+  // Remove the transaction from manna
+  manna.transactions.splice(transactionIndex, 1);
   writeManna(manna);
   
-  // Broadcast SSE update
-  broadcastSSE('manna', { action: 'delete', manna });
+  // Remove transaction from all pilots
+  const pilots = readPilots();
+  let pilotsUpdated = false;
+  pilots.forEach(pilot => {
+    if (pilot.personalTransactions && pilot.personalTransactions.includes(transactionId)) {
+      pilot.personalTransactions = pilot.personalTransactions.filter(id => id !== transactionId);
+      pilotsUpdated = true;
+    }
+  });
   
-  res.json({ success: true });
+  // Calculate new balances
+  const balances = calculateBalancesFromPilots();
+  
+  // Broadcast updated pilots enriched with balance information
+  if (pilotsUpdated) {
+    writePilots(pilots);
+    // Use existing manna variable instead of re-reading from disk (already modified above)
+    const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+    broadcastSSE('pilots', { action: 'update', pilots: enrichedPilots });
+  }
+  
+  // Broadcast SSE update for manna and balances
+  broadcastSSE('manna', { action: 'delete', manna, balances });
+  
+  res.json({ success: true, balances });
+});
+
+// Update pilot associations for a transaction
+app.put('/api/manna/transaction/:id/pilots', (req, res) => {
+  const manna = readManna();
+  const transaction = manna.transactions.find(t => t.id === req.params.id);
+  
+  if (!transaction) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Transaction not found' 
+    });
+  }
+  
+  let pilotIds = req.body.pilotIds || [];
+  
+  // Ensure pilotIds is an array
+  if (!Array.isArray(pilotIds)) {
+    try {
+      pilotIds = JSON.parse(pilotIds);
+    } catch (e) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid pilot IDs format'
+      });
+    }
+  }
+  
+  const pilots = readPilots();
+  const transactionId = req.params.id;
+  
+  // Validate that all provided pilot IDs exist
+  if (pilotIds.length > 0) {
+    const validPilotIds = pilots.map(p => p.id);
+    const invalidPilotIds = pilotIds.filter(id => !validPilotIds.includes(id));
+    
+    if (invalidPilotIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid pilot IDs: ${invalidPilotIds.join(', ')}`
+      });
+    }
+  }
+  
+  // Remove transaction from all pilots first
+  pilots.forEach(pilot => {
+    if (pilot.personalTransactions && pilot.personalTransactions.includes(transactionId)) {
+      pilot.personalTransactions = pilot.personalTransactions.filter(id => id !== transactionId);
+    }
+  });
+  
+  // Add transaction to selected pilots
+  pilots.forEach(pilot => {
+    if (pilotIds.includes(pilot.id)) {
+      if (!pilot.personalTransactions) {
+        pilot.personalTransactions = [];
+      }
+      if (!pilot.personalTransactions.includes(transactionId)) {
+        pilot.personalTransactions.push(transactionId);
+      }
+    }
+  });
+  
+  writePilots(pilots);
+  
+  // Calculate new balances and enrich pilots with balance information for SSE
+  const balances = calculateBalancesFromPilots();
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  
+  // Broadcast SSE updates with enriched pilot data
+  broadcastSSE('pilots', { action: 'update', pilots: enrichedPilots });
+  broadcastSSE('manna', { action: 'update', manna, balances });
+  
+  res.json({ success: true, balances, pilots: enrichedPilots });
 });
 
 // Base API endpoints
@@ -1339,12 +1720,18 @@ app.delete('/api/factions/:id', (req, res) => {
 // Pilots API endpoints
 app.get('/api/pilots', (req, res) => {
   const pilots = readPilots();
-  res.json(pilots);
+  const manna = readManna();
+  // Enrich pilots with balance information for consistency with SSE broadcasts
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  res.json(enrichedPilots);
 });
 
 app.post('/api/pilots', (req, res) => {
+  // Read manna data for transaction validation
+  const manna = readManna();
+  
   // Validate pilot data
-  const validation = validatePilotData(req.body);
+  const validation = validatePilotData(req.body, manna);
   if (!validation.valid) {
     return res.status(400).json({ success: false, message: validation.message });
   }
@@ -1358,15 +1745,20 @@ app.post('/api/pilots', (req, res) => {
     reserves: validation.reserves,
     active: validation.active,
     relatedJobs: [],
-    personalOperationProgress: validation.personalOperationProgress
+    personalOperationProgress: validation.personalOperationProgress,
+    personalTransactions: validation.personalTransactions
   };
   pilots.push(newPilot);
   writePilots(pilots);
   
-  // Broadcast SSE update
-  broadcastSSE('pilots', { action: 'create', pilot: newPilot, pilots });
+  // Enrich pilots with balance data for SSE broadcast (manna already declared above)
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  const enrichedNewPilot = enrichedPilots.find(p => p.id === newPilot.id);
   
-  res.json({ success: true, pilot: newPilot });
+  // Broadcast SSE update with enriched data
+  broadcastSSE('pilots', { action: 'create', pilot: enrichedNewPilot, pilots: enrichedPilots });
+  
+  res.json({ success: true, pilot: enrichedNewPilot });
 });
 
 app.put('/api/pilots/:id', (req, res) => {
@@ -1377,8 +1769,11 @@ app.put('/api/pilots/:id', (req, res) => {
     return res.status(404).json({ success: false, message: 'Pilot not found' });
   }
   
+  // Read manna data for transaction validation
+  const manna = readManna();
+  
   // Validate pilot data
-  const validation = validatePilotData(req.body);
+  const validation = validatePilotData(req.body, manna);
   if (!validation.valid) {
     return res.status(400).json({ success: false, message: validation.message });
   }
@@ -1391,14 +1786,19 @@ app.put('/api/pilots/:id', (req, res) => {
     reserves: validation.reserves,
     active: validation.active,
     relatedJobs: validation.relatedJobs,
-    personalOperationProgress: validation.personalOperationProgress
+    personalOperationProgress: validation.personalOperationProgress,
+    personalTransactions: validation.personalTransactions
   };
   writePilots(pilots);
   
-  // Broadcast SSE update
-  broadcastSSE('pilots', { action: 'update', pilot: pilots[index], pilots });
+  // Enrich pilots with balance data for SSE broadcast (manna already declared above)
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  const enrichedPilot = enrichedPilots.find(p => p.id === req.params.id);
   
-  res.json({ success: true, pilot: pilots[index] });
+  // Broadcast SSE update with enriched data
+  broadcastSSE('pilots', { action: 'update', pilot: enrichedPilot, pilots: enrichedPilots });
+  
+  res.json({ success: true, pilot: enrichedPilot });
 });
 
 app.delete('/api/pilots/:id', (req, res) => {
@@ -1429,6 +1829,90 @@ app.put('/api/pilots/:id/reserves', (req, res) => {
   broadcastSSE('pilots', { action: 'update', pilot: pilots[index], pilots });
   
   res.json({ success: true, pilot: pilots[index] });
+});
+
+// Get pilot balance and transaction history
+app.get('/api/pilots/:id/balance', (req, res) => {
+  const pilots = readPilots();
+  const manna = readManna();
+  const pilot = pilots.find(p => p.id === req.params.id);
+  
+  if (!pilot) {
+    return res.status(404).json({ success: false, message: 'Pilot not found' });
+  }
+  
+  // Get pilot's transactions
+  const personalTransactionIds = pilot.personalTransactions || [];
+  const pilotTransactions = manna.transactions
+    .filter(t => personalTransactionIds.includes(t.id))
+    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort oldest to newest for balance calculation
+  
+  // Calculate running balance for pilot (oldest to newest)
+  let runningBalance = 0;
+  const transactionsWithBalance = pilotTransactions.map(t => {
+    runningBalance += t.amount;
+    return {
+      ...t,
+      pilotBalance: runningBalance
+    };
+  });
+  
+  // Sort newest to top for display
+  transactionsWithBalance.reverse();
+  
+  res.json({ 
+    success: true, 
+    balance: runningBalance,
+    transactions: transactionsWithBalance
+  });
+});
+
+// Update pilot's personal transactions
+app.put('/api/pilots/:id/personal-transactions', (req, res) => {
+  const pilots = readPilots();
+  const index = pilots.findIndex(p => p.id === req.params.id);
+  
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Pilot not found' });
+  }
+  
+  // Validate personalTransactions array
+  let personalTransactions = [];
+  if (req.body.personalTransactions) {
+    try {
+      personalTransactions = Array.isArray(req.body.personalTransactions) 
+        ? req.body.personalTransactions 
+        : JSON.parse(req.body.personalTransactions);
+      if (!Array.isArray(personalTransactions)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Personal transactions must be an array' 
+        });
+      }
+    } catch (e) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid personal transactions format' 
+      });
+    }
+  }
+  
+  // Update pilot's personalTransactions
+  pilots[index].personalTransactions = personalTransactions;
+  writePilots(pilots);
+  
+  // Read manna data for balance enrichment
+  const manna = readManna();
+  
+  // Enrich pilots with balance data for SSE broadcast
+  const enrichedPilots = enrichPilotsWithBalance(pilots, manna);
+  const enrichedPilot = enrichedPilots.find(p => p.id === req.params.id);
+  
+  // Broadcast SSE update with enriched data
+  broadcastSSE('pilots', { action: 'update', pilot: enrichedPilot, pilots: enrichedPilots });
+  
+  // Return enriched pilot with balance in response
+  res.json({ success: true, pilot: enrichedPilot });
 });
 
 // Progress all jobs endpoint

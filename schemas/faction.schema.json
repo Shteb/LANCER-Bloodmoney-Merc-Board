@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/faction.schema.json",
+  "title": "Faction",
+  "description": "A faction in the LANCER Bloodmoney Merc Board system",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "emblem",
+    "brief",
+    "standing",
+    "jobsCompletedOffset",
+    "jobsFailedOffset"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID or custom ID)",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "description": "Faction name",
+      "minLength": 1
+    },
+    "emblem": {
+      "type": "string",
+      "description": "SVG filename from logo_art directory",
+      "pattern": "^[A-Za-z0-9_-]+\\.svg$"
+    },
+    "brief": {
+      "type": "string",
+      "description": "Faction description",
+      "minLength": 1
+    },
+    "standing": {
+      "type": "number",
+      "description": "Standing level (0=Distrusted, 1=Wary, 2=Neutral, 3=Respected, 4=Trusted)",
+      "minimum": 0,
+      "maximum": 4,
+      "multipleOf": 1
+    },
+    "jobsCompletedOffset": {
+      "type": "number",
+      "description": "Integer offset for completed job count",
+      "multipleOf": 1
+    },
+    "jobsFailedOffset": {
+      "type": "number",
+      "description": "Integer offset for failed job count",
+      "multipleOf": 1
+    }
+  },
+  "additionalProperties": false,
+  "notes": [
+    "Faction job counts are dynamically calculated from job states using helper functions:",
+    "- calculateFactionJobCounts(factionId, jobs) - counts Complete/Failed jobs by faction",
+    "- enrichFactionWithJobCounts(faction, jobs) - adds calculated totals (count + offset) to faction object",
+    "Legacy fields jobsCompleted/jobsFailed are automatically migrated to offset fields on startup"
+  ]
+}

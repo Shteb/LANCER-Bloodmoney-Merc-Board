@@ -239,6 +239,39 @@ function validateFactionId(factionId, factions) {
 }
 
 /**
+ * Validate transaction UUIDs exist in manna data
+ * @param {Array} transactionIds - Array of transaction UUIDs to validate
+ * @param {Object} manna - Manna data object with transactions array
+ * @returns {Object} { valid: boolean, message?: string }
+ */
+function validateTransactionIds(transactionIds, manna) {
+  // Empty array is valid
+  if (!transactionIds || transactionIds.length === 0) {
+    return { valid: true };
+  }
+  
+  // Check if manna data and transactions exist
+  if (!manna || !Array.isArray(manna.transactions)) {
+    return { valid: true }; // Allow if manna data not available yet
+  }
+  
+  // Get all transaction IDs from manna data
+  const existingTransactionIds = new Set(manna.transactions.map(t => t.id));
+  
+  // Find any invalid transaction IDs
+  const invalidIds = transactionIds.filter(id => !existingTransactionIds.has(id));
+  
+  if (invalidIds.length > 0) {
+    return {
+      valid: false,
+      message: `Invalid transaction UUID(s): ${invalidIds.join(', ')}. Transaction(s) do not exist.`
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Calculate faction job counts from job data
  * @param {string} factionId - Faction ID
  * @param {Array} jobs - Array of all jobs
@@ -291,6 +324,135 @@ function errorResponse(message, statusCode = 400) {
   };
 }
 
+/**
+ * Calculate pilot's balance from their personal transactions
+ * @param {Object} pilot - Pilot object with personalTransactions array
+ * @param {Array} transactions - Array of all transaction objects
+ * @returns {number} Pilot's current balance
+ */
+function calculatePilotBalance(pilot, transactions) {
+  if (!pilot.personalTransactions || pilot.personalTransactions.length === 0) {
+    return 0;
+  }
+  
+  // Create a map for quick transaction lookup
+  const transactionMap = {};
+  transactions.forEach(t => {
+    transactionMap[t.id] = t;
+  });
+  
+  // Sum amounts for pilot's transactions
+  let balance = 0;
+  pilot.personalTransactions.forEach(txnId => {
+    const transaction = transactionMap[txnId];
+    if (transaction) {
+      balance += transaction.amount;
+    }
+  });
+  
+  return balance;
+}
+
+/**
+ * Get balances for all active pilots
+ * @param {Array} pilots - Array of pilot objects
+ * @param {Array} transactions - Array of all transaction objects
+ * @returns {Array} Array of {pilot, balance} objects for active pilots
+ */
+function getActivePilotBalances(pilots, transactions) {
+  return pilots
+    .filter(pilot => pilot.active)
+    .map(pilot => ({
+      pilot,
+      balance: calculatePilotBalance(pilot, transactions)
+    }));
+}
+
+/**
+ * Get deduplicated transaction history with pilot information
+ * Note: Only includes transactions associated with active pilots. Transactions
+ * associated exclusively with inactive pilots are excluded from the results.
+ * @param {Array} pilots - Array of pilot objects
+ * @param {Array} transactions - Array of all transaction objects
+ * @param {number} limit - Optional limit on number of transactions (0 = all)
+ * @returns {Array} Array of enriched transaction objects sorted by date (newest first)
+ */
+function getDeduplicatedTransactionHistory(pilots, transactions, limit = 0) {
+  // Get active pilots only
+  const activePilots = pilots.filter(pilot => pilot.active);
+  
+  // Create a map to track unique transactions and their related pilots
+  const transactionPilotMap = {};
+  
+  activePilots.forEach(pilot => {
+    if (pilot.personalTransactions && pilot.personalTransactions.length > 0) {
+      pilot.personalTransactions.forEach(txnId => {
+        if (!transactionPilotMap[txnId]) {
+          transactionPilotMap[txnId] = [];
+        }
+        transactionPilotMap[txnId].push(pilot);
+      });
+    }
+  });
+  
+  // Get unique transaction IDs
+  const uniqueTransactionIds = Object.keys(transactionPilotMap);
+  
+  // Create transaction lookup map
+  const transactionMap = {};
+  transactions.forEach(t => {
+    transactionMap[t.id] = t;
+  });
+  
+  // Build enriched transactions
+  const enrichedTransactions = uniqueTransactionIds
+    .map(txnId => {
+      const transaction = transactionMap[txnId];
+      if (!transaction) return null;
+      
+      const relatedPilots = transactionPilotMap[txnId] || [];
+      const pilotCount = relatedPilots.length;
+      
+      return {
+        ...transaction,
+        relatedPilots: relatedPilots,
+        relatedPilotCallsigns: relatedPilots.map(p => p.callsign),
+        // totalAmount represents "group impact" - if 3 pilots share a 100-unit transaction,
+        // totalAmount is 300 to show the total financial impact across all involved pilots.
+        // Note: Individual pilot balances use transaction.amount (non-multiplied).
+        totalAmount: transaction.amount * pilotCount
+      };
+    })
+    .filter(t => t !== null);
+  
+  // Sort by date (newest first)
+  enrichedTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  // Apply limit if specified
+  if (limit > 0) {
+    return enrichedTransactions.slice(0, limit);
+  }
+  
+  return enrichedTransactions;
+}
+
+/**
+ * Calculate cumulative balance for transaction history
+ * @param {Array} enrichedTransactions - Array of enriched transactions (sorted oldest to newest)
+ * @returns {Array} Array of transactions with cumulative balance
+ */
+function calculateCumulativeBalances(enrichedTransactions) {
+  let cumulativeBalance = 0;
+  
+  return enrichedTransactions.map(txn => {
+    cumulativeBalance += txn.totalAmount;
+    return {
+      ...txn,
+      cumulativeBalance
+    };
+  });
+}
+
 module.exports = {
   // Constants
   STANDING_LABELS,
@@ -313,8 +475,13 @@ module.exports = {
   validateInteger,
   validateJobState,
   validateFactionId,
+  validateTransactionIds,
   calculateFactionJobCounts,
   enrichFactionWithJobCounts,
+  calculatePilotBalance,
+  getActivePilotBalances,
+  getDeduplicatedTransactionHistory,
+  calculateCumulativeBalances,
   successResponse,
   errorResponse
 };

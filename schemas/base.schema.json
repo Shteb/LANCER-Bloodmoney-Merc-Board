@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/base.schema.json",
+  "title": "Base",
+  "description": "Base modules configuration container",
+  "type": "object",
+  "required": ["modules"],
+  "properties": {
+    "modules": {
+      "type": "array",
+      "description": "Array of 15 module objects (3 Core, 6 Major, 6 Minor)",
+      "items": {
+        "$ref": "https://lancer-job-board.local/schemas/base-module.schema.json"
+      },
+      "minItems": 15,
+      "maxItems": 15
+    }
+  },
+  "additionalProperties": false
+}

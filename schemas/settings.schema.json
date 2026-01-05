@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/settings.schema.json",
+  "title": "Settings",
+  "description": "Global settings for the LANCER Bloodmoney Merc Board application",
+  "type": "object",
+  "required": [
+    "portalHeading",
+    "currentGalacticPos",
+    "colorScheme",
+    "userGroup",
+    "operationProgress"
+  ],
+  "properties": {
+    "portalHeading": {
+      "type": "string",
+      "description": "Portal title displayed in header",
+      "minLength": 1
+    },
+    "unt": {
+      "type": "string",
+      "description": "Universal time/date in DD/MM/YYYY format (optional)",
+      "pattern": "^(\\d{2}/\\d{2}/\\d{4})?$"
+    },
+    "currentGalacticPos": {
+      "type": "string",
+      "description": "Current galactic position text"
+    },
+    "colorScheme": {
+      "type": "string",
+      "description": "Color theme",
+      "enum": [
+        "grey",
+        "orange",
+        "green",
+        "blue"
+      ]
+    },
+    "userGroup": {
+      "type": "string",
+      "description": "User group name displayed in CLIENT view",
+      "minLength": 1
+    },
+    "operationProgress": {
+      "type": "number",
+      "description": "Operation progress level (0-3)",
+      "minimum": 0,
+      "maximum": 3,
+      "multipleOf": 1
+    },
+    "openTable": {
+      "type": "boolean",
+      "description": "Open table flag (optional, defaults to false)"
+    }
+  },
+  "additionalProperties": false
+}

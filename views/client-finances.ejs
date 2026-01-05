@@ -37,33 +37,17 @@
       <div class="balance-overview">
         <h2>> CURRENT_MANNA_BALANCE:</h2>
         <div class="balance-display" id="balance-display">
-          <%= manna.balance %>
+          <%= totalBalance %>
           <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
         </div>
-      </div>
-
-      <div class="transaction-form">
-        <h2>> SUBMIT_BALANCE_CHANGE:</h2>
-        <form id="transactionForm">
-          <div class="form-group">
-            <label for="amount">Amount (use + for income, - for expense):</label>
-            <input type="number" id="amount" name="amount" required placeholder="e.g., +500 or -100">
-          </div>
-          <div class="form-group">
-            <label for="description">Description:</label>
-            <input type="text" id="description" name="description" required placeholder="e.g., Mission payment received">
-          </div>
-          <button type="submit" class="submit-btn">Submit Transaction</button>
-        </form>
-        <div id="message" class="message"></div>
       </div>
 
       <div class="transactions-history">
         <h2>> TRANSACTION_HISTORY:</h2>
         <div id="transactions-container">
-          <% if (manna.transactions.length > 0) { %>
+          <% if (allTransactions.length > 0) { %>
             <div class="transactions-table" id="transactions-table">
-              <% manna.transactions.slice().reverse().forEach(transaction => { %>
+              <% allTransactions.forEach(transaction => { %>
                 <div class="transaction-row">
                   <div class="transaction-date">
                     <%= new Date(transaction.date).toLocaleString('en-GB', { 
@@ -74,13 +58,19 @@
                       minute: '2-digit' 
                     }) %>
                   </div>
-                  <div class="transaction-amount <%= transaction.amount >= 0 ? 'positive' : 'negative' %>">
-                    <%= transaction.amount >= 0 ? '+' : '' %><%= transaction.amount %>
+                  <div class="transaction-amount <%= transaction.totalAmount >= 0 ? 'positive' : 'negative' %>">
+                    <%= transaction.totalAmount >= 0 ? '+' : '' %><%= transaction.totalAmount %>
                     <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
                   </div>
                   <div class="transaction-description"><%= transaction.description %></div>
+                  <div class="transaction-pilots">
+                    Pilots: 
+                    <%= transaction.relatedPilotCallsigns && transaction.relatedPilotCallsigns.length > 0
+                          ? transaction.relatedPilotCallsigns.join(', ')
+                          : 'None' %>
+                  </div>
                   <div class="transaction-balance">
-                    Balance: <%= transaction.balance %>
+                    Balance: <%= transaction.cumulativeBalance %>
                     <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
                   </div>
                 </div>
@@ -97,111 +87,34 @@
   <script src="/js/shared-handlers.js"></script>
   <script src="/js/sse-client.js"></script>
   <script>
-    // Handle manna update from SSE
+    // Handle manna and pilot updates from SSE
     function handleMannaUpdate(data) {
-      if (data && data.manna) {
-        const manna = data.manna;
-        
+      if (data && data.balances && data.balances.activeBalance !== undefined) {
         // Update balance display
         const balanceDisplay = document.getElementById('balance-display');
-        balanceDisplay.innerHTML = `
-          ${manna.balance}
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-        `;
-        
-        // Update transactions
-        renderTransactions(manna.transactions);
-      }
-    }
-    
-    // Render transactions
-    function renderTransactions(transactions) {
-      const container = document.getElementById('transactions-container');
-      
-      if (!container) {
-        console.warn("renderTransactions: 'transactions-container' element not found.");
-        return;
-      }
-      
-      if (transactions.length === 0) {
-        container.innerHTML = '<p id="no-transactions">> NO_TRANSACTIONS_RECORDED_</p>';
-      } else {
-        const reversedTransactions = transactions.slice().reverse();
-        container.innerHTML = `
-          <div class="transactions-table" id="transactions-table">
-            ${reversedTransactions.map(transaction => {
-              const date = new Date(transaction.date);
-              const formattedDate = date.toLocaleString('en-GB', { 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit', 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              });
-              const amountClass = transaction.amount >= 0 ? 'positive' : 'negative';
-              const amountPrefix = transaction.amount >= 0 ? '+' : '';
-              
-              return `
-                <div class="transaction-row">
-                  <div class="transaction-date">${formattedDate}</div>
-                  <div class="transaction-amount ${amountClass}">
-                    ${amountPrefix}${transaction.amount}
-                    <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                  </div>
-                  <div class="transaction-description">${transaction.description}</div>
-                  <div class="transaction-balance">
-                    Balance: ${transaction.balance}
-                    <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
-      }
-    }
-    
-    // Original transaction form submission
-    document.getElementById('transactionForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const amount = parseInt(document.getElementById('amount').value);
-      const description = document.getElementById('description').value;
-      const messageDiv = document.getElementById('message');
-
-      try {
-        const response = await fetch('/api/manna/transaction', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ amount, description })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          messageDiv.textContent = '> TRANSACTION_SUBMITTED_SUCCESSFULLY_';
-          messageDiv.className = 'message success';
-          
-          // Clear form
-          document.getElementById('amount').value = '';
-          document.getElementById('description').value = '';
-          
-          // Clear message after 3 seconds
-          setTimeout(() => {
-            messageDiv.textContent = '';
-            messageDiv.className = 'message';
-          }, 3000);
-        } else {
-          messageDiv.textContent = '> ERROR: TRANSACTION_FAILED_';
-          messageDiv.className = 'message error';
+        if (balanceDisplay) {
+          balanceDisplay.innerHTML = `
+            ${data.balances.activeBalance}
+            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          `;
         }
-      } catch (error) {
-        messageDiv.textContent = '> ERROR: COULD_NOT_SUBMIT_TRANSACTION_';
-        messageDiv.className = 'message error';
       }
-    });
+      
+      // For transaction-related changes, reload to ensure full consistency
+      if (data && (data.action === 'transaction' || data.action === 'update' || data.action === 'delete')) {
+        // TODO: Consider dynamically updating transaction list instead of reload
+        // For now, a full page reload ensures consistency
+        window.location.reload();
+      }
+    }
+    
+    function handlePilotsUpdate(data) {
+      // Pilot changes affect transaction history display
+      // Only reload if this would impact the displayed data
+      if (data && data.pilots) {
+        window.location.reload();
+      }
+    }
   </script>
 </body>
 </html>

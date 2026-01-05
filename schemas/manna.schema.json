@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/manna.schema.json",
+  "title": "Manna",
+  "description": "Manna balance and transaction history container",
+  "type": "object",
+  "required": ["transactions"],
+  "properties": {
+    "transactions": {
+      "type": "array",
+      "description": "Array of transaction objects",
+      "items": {
+        "$ref": "https://lancer-job-board.local/schemas/transaction.schema.json"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "notes": [
+    "Transaction objects do NOT store pilot references.",
+    "Pilot-to-transaction relationships are one-way: pilots reference transaction UUIDs in their personalTransactions array.",
+    "Any transaction can be referenced by any number of pilots (many-to-many relationship)."
+  ]
+}

@@ -38,7 +38,7 @@
         <div class="balance-section">
           <h2>> MANNA_BALANCE:</h2>
           <div class="balance-display" id="balance-display">
-            <%= manna.balance %>
+            <%= totalBalance %>
             <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
@@ -49,11 +49,25 @@
             <div class="transactions-list" id="transactions-list">
               <% recentTransactions.forEach(transaction => { %>
                 <div class="transaction-item">
-                  <span class="transaction-amount <%= transaction.amount >= 0 ? 'positive' : 'negative' %>">
-                    <%= transaction.amount >= 0 ? '+' : '' %><%= transaction.amount %>
-                    <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                  </span>
-                  <span class="transaction-description"><%= transaction.description %></span>
+                  <div class="transaction-main">
+                    <span class="transaction-amount <%= transaction.totalAmount >= 0 ? 'positive' : 'negative' %>">
+                      <%= transaction.totalAmount >= 0 ? '+' : '' %><%= transaction.totalAmount %>
+                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    </span>
+                    <span class="transaction-description"><%= transaction.description %></span>
+                  </div>
+                  <div class="transaction-details">
+                    <span class="transaction-pilots">
+                      Pilots: 
+                      <%= transaction.relatedPilotCallsigns && transaction.relatedPilotCallsigns.length > 0
+                            ? transaction.relatedPilotCallsigns.join(', ')
+                            : 'None' %>
+                    </span>
+                    <span class="transaction-balance">
+                      Balance: <%= transaction.cumulativeBalance %>
+                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    </span>
+                  </div>
                 </div>
               <% }); %>
             </div>
@@ -83,45 +97,29 @@
   <script src="/js/shared-handlers.js"></script>
   <script src="/js/sse-client.js"></script>
   <script>
-    // Handle manna update from SSE
+    // Handle manna and pilot updates from SSE
     function handleMannaUpdate(data) {
-      if (data && data.manna) {
-        const manna = data.manna;
-        
+      if (data && data.balances && data.balances.activeBalance !== undefined) {
         // Update balance display
         const balanceDisplay = document.getElementById('balance-display');
         if (balanceDisplay) {
           balanceDisplay.innerHTML = `
-            ${manna.balance}
+            ${data.balances.activeBalance}
             <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
           `;
         }
-        
-        // Update recent transactions (last 5)
-        const recentTransactions = manna.transactions.slice(-5).reverse();
-        const transactionsList = document.getElementById('transactions-list');
-        
-        if (recentTransactions.length > 0) {
-          if (transactionsList) {
-            transactionsList.innerHTML = recentTransactions.map(transaction => `
-              <div class="transaction-item">
-                <span class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
-                  ${transaction.amount >= 0 ? '+' : ''}${transaction.amount}
-                  <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                </span>
-                <span class="transaction-description">${transaction.description}</span>
-              </div>
-            `).join('');
-          }
-        } else {
-          const transactionsSection = document.getElementById('transactions-section');
-          if (transactionsSection) {
-            transactionsSection.innerHTML = `
-              <h3>> RECENT_TRANSACTIONS:</h3>
-              <p>> NO_TRANSACTIONS_RECORDED_</p>
-              <a href="/client/finances" class="view-more-button">[VIEW_FINANCES]</a>
-            `;
-          }
+      }
+    }
+    
+    function handlePilotsUpdate(data) {
+      // Pilot updates may affect balances; update balance display if provided
+      if (data && data.balances && data.balances.activeBalance !== undefined) {
+        const balanceDisplay = document.getElementById('balance-display');
+        if (balanceDisplay) {
+          balanceDisplay.innerHTML = `
+            ${data.balances.activeBalance}
+            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          `;
         }
       }
     }

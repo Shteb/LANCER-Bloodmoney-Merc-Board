@@ -150,6 +150,40 @@
       outline-offset: 1px;
     }
     
+    .btn-secondary {
+      background-color: #888;
+      color: white;
+      margin-right: 5px;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #777;
+    }
+    
+    .filter-pill {
+      padding: 8px 16px;
+      margin-right: 8px;
+      border: 2px solid #666;
+      border-radius: 20px;
+      background-color: #1a1a1a;
+      color: #b0b0b0;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    
+    .filter-pill:hover {
+      background-color: #2a2a2a;
+      border-color: #888;
+    }
+    
+    .filter-pill.active {
+      background-color: #66BB6A;
+      color: white;
+      border-color: #66BB6A;
+    }
+    
     .button-group {
       display: flex;
       flex-wrap: wrap;
@@ -488,7 +522,8 @@
       color: #66BB6A;
       margin-bottom: 20px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
       gap: 10px;
     }
     
@@ -617,20 +652,20 @@
     <div class="settings-section">
       <h2>Manna Balance Management</h2>
       <div class="manna-display">
-        Balance: <span id="overviewMannaBalance"><%= manna.balance %></span>
-        <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+        <div style="margin-bottom: 10px;">
+          <strong>Active Balance:</strong> <span id="activeBalance" style="font-size: 1.3em;"><%= balances.activeBalance %></span>
+          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+        </div>
+        <div style="font-size: 0.9em; color: #b0b0b0;">
+          Total Balance: <span id="totalBalance"><%= balances.totalBalance %></span>
+          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon" style="width: 20px; height: 20px;">
+        </div>
       </div>
       
-      <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Modify Balance</h3>
-      <form id="directBalanceForm" style="margin-bottom: 30px;">
-        <div class="form-group">
-          <label for="directBalance">Set Balance Directly</label>
-          <input type="number" id="directBalance" name="balance" value="<%= manna.balance %>" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Set Balance</button>
-      </form>
-      
       <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Add Transaction</h3>
+      <p style="color: #FFD700; margin-bottom: 10px; font-size: 0.9em;">
+        <strong>Note:</strong> Each pilot will be affected by the full transaction amount.
+      </p>
       <form id="overviewMannaForm">
         <div class="form-group">
           <label for="overviewMannaAmount">Amount (+ or -)</label>
@@ -640,21 +675,74 @@
           <label for="overviewMannaDescription">Transaction Description</label>
           <input type="text" id="overviewMannaDescription" name="description" required>
         </div>
+        <div class="form-group">
+          <button type="button" class="btn btn-secondary" onclick="openPilotSelectionModal()">Select Pilot(s)</button>
+          <input type="hidden" id="selectedPilotIds" name="pilotIds" value="">
+          <p style="color: #b0b0b0; margin-top: 5px; font-size: 0.9em;">
+            <span id="selectedPilotsText">No pilots selected (will assign to all active pilots)</span>
+          </p>
+        </div>
         <button type="submit" class="btn btn-primary">Add Transaction</button>
       </form>
       
       <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Transaction History</h3>
+      
+      <div style="margin-bottom: 15px;">
+        <button class="filter-pill active" data-filter="all" onclick="filterTransactions('all', event)">All</button>
+        <button class="filter-pill" data-filter="assigned" onclick="filterTransactions('assigned', event)">Assigned</button>
+        <button class="filter-pill" data-filter="unassigned" onclick="filterTransactions('unassigned', event)">Unassigned</button>
+      </div>
+      
       <div id="transactionsList">
         <% if (manna.transactions.length === 0) { %>
           <p style="color: #b0b0b0;">No transactions yet.</p>
         <% } else { %>
+          <% 
+          // Create a map of which pilots have which transactions
+          const pilotTransactionMap = {};
+          pilots.forEach(pilot => {
+            if (pilot.personalTransactions && Array.isArray(pilot.personalTransactions)) {
+              pilot.personalTransactions.forEach(txnId => {
+                if (!pilotTransactionMap[txnId]) {
+                  pilotTransactionMap[txnId] = [];
+                }
+                pilotTransactionMap[txnId].push(pilot);
+              });
+            }
+          });
+          %>
           <% manna.transactions.slice().reverse().forEach(transaction => { %>
-            <div class="transaction-item" data-id="<%= transaction.id %>">
+            <% 
+            const assignedPilots = pilotTransactionMap[transaction.id] || [];
+            const isAssigned = assignedPilots.length > 0;
+            
+            // Sort pilots: active pilots first, then inactive pilots (create copy to avoid mutation)
+            const sortedPilots = [...assignedPilots].sort((a, b) => {
+              if (a.active && !b.active) return -1;
+              if (!a.active && b.active) return 1;
+              return 0;
+            });
+            
+            // Count active pilots only
+            const activePilotCount = assignedPilots.filter(p => p.active).length;
+            const totalAmount = activePilotCount * transaction.amount;
+            %>
+            <div class="transaction-item" data-id="<%= transaction.id %>" data-assigned="<%= isAssigned ? 'true' : 'false' %>">
               <div class="transaction-item-field">
                 <strong>Date:</strong> <%= new Date(transaction.date).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) %>
               </div>
               <div class="transaction-item-field">
-                <strong>Amount:</strong> 
+                <strong>Total amount:</strong> 
+                <span style="color: <%= totalAmount >= 0 ? '#66BB6A' : '#f44336' %>">
+                  <%= totalAmount >= 0 ? '+' : '' %><%= totalAmount %>
+                </span>
+                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <span style="color: #888; font-size: 0.9em; margin-left: 5px;">
+                  (<%= activePilotCount %> active pilot<%= activePilotCount !== 1 ? 's' : '' %>)
+                </span>
+              </div>
+              <div class="transaction-item-field">
+                <strong>Individual amount:</strong> 
                 <span style="color: <%= transaction.amount >= 0 ? '#66BB6A' : '#f44336' %>">
                   <%= transaction.amount >= 0 ? '+' : '' %><%= transaction.amount %>
                 </span>
@@ -664,10 +752,19 @@
                 <strong>Description:</strong> <%= transaction.description %>
               </div>
               <div class="transaction-item-field">
-                <strong>Balance After:</strong> <%= transaction.balance %>
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <strong>Assigned to:</strong> 
+                <% if (sortedPilots.length === 0) { %>
+                  <span style="color: #888;">Unassigned</span>
+                <% } else { %>
+                  <% sortedPilots.forEach((pilot, index) => { %>
+                    <span style="color: <%= pilot.active ? '#66BB6A' : '#888' %>;">
+                      <%= pilot.callsign %><%= index < sortedPilots.length - 1 ? ', ' : '' %>
+                    </span>
+                  <% }); %>
+                <% } %>
               </div>
               <div class="transaction-item-actions">
+                <button class="btn btn-secondary" onclick="editTransactionPilots('<%= transaction.id %>')">Select Pilot(s)</button>
                 <button class="btn btn-edit" onclick="editTransaction('<%= transaction.id %>')">Edit</button>
                 <button class="btn btn-delete" onclick="deleteTransaction('<%= transaction.id %>')">Delete</button>
               </div>
@@ -1088,6 +1185,11 @@
             <div class="job-item" data-id="<%= pilot.id %>">
               <h3><%= pilot.name %> ("<%= pilot.callsign %>") <% if (pilot.active) { %><span class="state-badge state-badge-active">ACTIVE</span><% } else { %><span class="state-badge state-badge-ignored">INACTIVE</span><% } %></h3>
               <div class="job-item-field"><strong>License Level:</strong> <%= pilot.ll %></div>
+              <div class="job-item-field">
+                <strong>Balance:</strong> 
+                <span class="pilot-balance" data-pilot-id="<%= pilot.id %>"><%= pilot.balance || 0 %></span>
+                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              </div>
               <% if (pilot.reserves) { %>
                 <div class="job-item-field"><strong>Reserves:</strong><br><pre style="margin: 5px 0; font-family: inherit; white-space: pre-wrap;"><%= pilot.reserves %></pre></div>
               <% } %>
@@ -1100,6 +1202,7 @@
               <div class="job-item-actions">
                 <button class="btn btn-edit" onclick="editPilot('<%= pilot.id %>')">Edit</button>
                 <button class="btn btn-neutral" onclick="openPilotRelatedJobsModal('<%= pilot.id %>')">Related Jobs</button>
+                <button class="btn btn-neutral" onclick="openPilotBalanceHistoryModal('<%= pilot.id %>')">Balance History</button>
                 <button class="btn btn-delete" onclick="deletePilot('<%= pilot.id %>')">Delete</button>
               </div>
             </div>
@@ -1283,11 +1386,42 @@
         </div>
         
         <p style="color: #b0b0b0; margin: 10px 0;">
-          <em>Note: Editing transactions does not affect the balance value. Use this for record-keeping purposes only.</em>
+          <em>Note: Editing transactions does not affect pilot associations. Use the "Select Pilot(s)" button to change pilot assignments.</em>
         </p>
         
         <button type="submit" class="btn btn-primary">Save Changes</button>
       </form>
+    </div>
+  </div>
+  
+  <!-- Pilot Selection Modal -->
+  <div id="pilotSelectionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Select Pilot(s)</h2>
+        <span class="close" onclick="closePilotSelectionModal()">&times;</span>
+      </div>
+      <div id="pilotSelectionList" style="max-height: 400px; overflow-y: auto;">
+        <% if (pilots.length === 0) { %>
+          <p style="color: #b0b0b0;">No pilots available.</p>
+        <% } else { %>
+          <% pilots.sort((a, b) => {
+            if (a.active !== b.active) return b.active ? 1 : -1;
+            return a.name.localeCompare(b.name);
+          }).forEach(pilot => { %>
+            <div style="margin-bottom: 10px; padding: 10px; background-color: <%= pilot.active ? '#1a1a1a' : '#2a2a2a' %>; border-radius: 3px;">
+              <label style="display: flex; align-items: center; cursor: pointer; color: <%= pilot.active ? '#e0e0e0' : '#888' %>;">
+                <input type="checkbox" class="pilot-checkbox" value="<%= pilot.id %>" style="margin-right: 10px; width: auto;">
+                <span><%= pilot.name %> (<%= pilot.callsign %>)<%= pilot.active ? '' : ' - Inactive' %></span>
+              </label>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+      <div style="margin-top: 20px;">
+        <button type="button" class="btn btn-primary" onclick="confirmPilotSelection()">Confirm Selection</button>
+        <button type="button" class="btn btn-neutral" onclick="closePilotSelectionModal()">Cancel</button>
+      </div>
     </div>
   </div>
   
@@ -1356,6 +1490,31 @@
       </div>
       <div style="margin-top: 15px;">
         <button class="btn btn-primary" onclick="savePilotRelatedJobs()">Save Related Jobs</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Pilot Balance History Modal -->
+  <div id="pilotBalanceHistoryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Pilot Balance History</h2>
+        <span class="close" onclick="closePilotBalanceHistoryModal()">&times;</span>
+      </div>
+      <input type="hidden" id="pilotBalanceHistoryPilotId">
+      <div style="margin-bottom: 15px;">
+        <div class="job-item-field">
+          <strong>Current Balance:</strong> 
+          <span id="pilotBalanceHistoryTotal">0</span>
+          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+        </div>
+      </div>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Uncheck transactions to disassociate them from this pilot. The transaction will remain in the system.</p>
+      <div id="pilotBalanceHistoryList" style="max-height: 400px; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a;">
+        <!-- Populated dynamically -->
+      </div>
+      <div style="margin-top: 15px;">
+        <button class="btn btn-primary" onclick="savePilotBalanceHistory()">Save Changes</button>
       </div>
     </div>
   </div>
@@ -1468,57 +1627,95 @@
       }
       
       const manna = data.manna;
+      const balances = data.balances || { activeBalance: 0, totalBalance: 0 };
       
       // Update balance displays
-      const overviewMannaBalance = document.getElementById('overviewMannaBalance');
-      if (overviewMannaBalance) {
-        overviewMannaBalance.textContent = manna.balance;
+      const activeBalance = document.getElementById('activeBalance');
+      if (activeBalance) {
+        activeBalance.textContent = balances.activeBalance;
       }
       
-      const directBalance = document.getElementById('directBalance');
-      if (directBalance) {
-        directBalance.value = manna.balance;
+      const totalBalance = document.getElementById('totalBalance');
+      if (totalBalance) {
+        totalBalance.textContent = balances.totalBalance;
       }
       
       // Update transaction list
       const transactionsList = document.getElementById('transactionsList');
-      if (transactionsList) {
+      if (transactionsList && manna.transactions) {
         if (manna.transactions.length === 0) {
           transactionsList.innerHTML = '<p style="color: #b0b0b0;">No transactions yet.</p>';
         } else {
-          const reversedTransactions = manna.transactions.slice().reverse();
-          transactionsList.innerHTML = reversedTransactions.map(transaction => {
-            const date = new Date(transaction.date);
-            const formattedDate = date.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
-            const amountColor = transaction.amount >= 0 ? '#66BB6A' : '#f44336';
-            const amountPrefix = transaction.amount >= 0 ? '+' : '';
-            
-            return `
-              <div class="transaction-item" data-id="${transaction.id}">
-                <div class="transaction-item-field">
-                  <strong>Date:</strong> ${formattedDate}
-                </div>
-                <div class="transaction-item-field">
-                  <strong>Amount:</strong> 
-                  <span style="color: ${amountColor}">
-                    ${amountPrefix}${transaction.amount}
-                  </span>
-                  <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                </div>
-                <div class="transaction-item-field">
-                  <strong>Description:</strong> ${transaction.description}
-                </div>
-                <div class="transaction-item-field">
-                  <strong>Balance After:</strong> ${transaction.balance}
-                  <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
-                </div>
-                <div class="transaction-item-actions">
-                  <button class="btn btn-edit" onclick="editTransaction('${transaction.id}')">Edit</button>
-                  <button class="btn btn-delete" onclick="deleteTransaction('${transaction.id}')">Delete</button>
-                </div>
-              </div>
-            `;
-          }).join('');
+          // Fetch pilots to build the pilot-transaction map
+          fetch('/api/pilots')
+            .then(res => res.json())
+            .then(pilots => {
+              const pilotTransactionMap = {};
+              pilots.forEach(pilot => {
+                if (pilot.personalTransactions && Array.isArray(pilot.personalTransactions)) {
+                  pilot.personalTransactions.forEach(txnId => {
+                    if (!pilotTransactionMap[txnId]) {
+                      pilotTransactionMap[txnId] = [];
+                    }
+                    pilotTransactionMap[txnId].push(pilot);
+                  });
+                }
+              });
+              
+              const reversedTransactions = manna.transactions.slice().reverse();
+              const currentFilter = document.querySelector('.filter-pill.active')?.getAttribute('data-filter') || 'all';
+              
+              transactionsList.innerHTML = reversedTransactions.map(transaction => {
+                const date = new Date(transaction.date);
+                const formattedDate = date.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+                const amountColor = transaction.amount >= 0 ? '#66BB6A' : '#f44336';
+                const amountPrefix = transaction.amount >= 0 ? '+' : '';
+                
+                const assignedPilots = pilotTransactionMap[transaction.id] || [];
+                const isAssigned = assignedPilots.length > 0;
+                
+                // Apply filter
+                let displayStyle = '';
+                if (currentFilter === 'assigned' && !isAssigned) {
+                  displayStyle = ' style="display: none;"';
+                } else if (currentFilter === 'unassigned' && isAssigned) {
+                  displayStyle = ' style="display: none;"';
+                }
+                
+                const assignedText = isAssigned 
+                  ? `<span style="color: #66BB6A;">${assignedPilots.map(p => p.callsign).join(', ')}</span>`
+                  : '<span style="color: #888;">Unassigned</span>';
+                
+                return `
+                  <div class="transaction-item" data-id="${transaction.id}" data-assigned="${isAssigned ? 'true' : 'false'}"${displayStyle}>
+                    <div class="transaction-item-field">
+                      <strong>Date:</strong> ${formattedDate}
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Amount:</strong> 
+                      <span style="color: ${amountColor}">
+                        ${amountPrefix}${transaction.amount}
+                      </span>
+                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Description:</strong> ${transaction.description}
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Assigned to:</strong> ${assignedText}
+                    </div>
+                    <div class="transaction-item-actions">
+                      <button class="btn btn-secondary" onclick="editTransactionPilots('${transaction.id}')">Select Pilot(s)</button>
+                      <button class="btn btn-edit" onclick="editTransaction('${transaction.id}')">Edit</button>
+                      <button class="btn btn-delete" onclick="deleteTransaction('${transaction.id}')">Delete</button>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            })
+            .catch(err => {
+              console.error('Error fetching pilots for transaction update:', err);
+            });
         }
       }
     }
@@ -2084,28 +2281,122 @@
     
     
     // ==================== OVERVIEW MANNA MANAGEMENT ====================
-    if (document.getElementById('directBalanceForm')) {
-      document.getElementById('directBalanceForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const balance = parseInt(formData.get('balance'));
-        
-        try {
-          const response = await fetch('/api/manna', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance, description: '', amount: 0 })
+    // Pilot selection modal state
+    let pilotSelectionContext = null; // 'add' or { type: 'edit', transactionId: '...' }
+    let selectedPilotIds = [];
+    
+    function openPilotSelectionModal(transactionId = null) {
+      const modal = document.getElementById('pilotSelectionModal');
+      
+      if (transactionId) {
+        pilotSelectionContext = { type: 'edit', transactionId };
+        // Get current pilot selections for this transaction
+        fetch('/api/pilots')
+          .then(res => {
+            if (!res.ok) {
+              throw new Error('Failed to fetch pilot data');
+            }
+            return res.json();
+          })
+          .then(pilots => {
+            selectedPilotIds = pilots
+              .filter(p => p.personalTransactions && p.personalTransactions.includes(transactionId))
+              .map(p => p.id);
+            updatePilotCheckboxes();
+            // Display modal only after data is loaded
+            modal.style.display = 'block';
+          })
+          .catch(error => {
+            console.error('Error fetching pilot data:', error);
+            // Do not open modal on error; inform user via alert
+            alert('Failed to load pilot data. Please try again.');
           });
-          
-          if (response.ok) {
-            const result = await response.json();
-            document.getElementById('overviewMannaBalance').textContent = result.manna.balance;
-            showNotification('Balance updated successfully!');
-          } else {
-            alert('Failed to update balance');
-          }
-        } catch (error) {
-          alert('Error updating balance');
+      } else {
+        pilotSelectionContext = 'add';
+        selectedPilotIds = [];
+        updatePilotCheckboxes();
+        modal.style.display = 'block';
+      }
+    }
+    
+    function closePilotSelectionModal() {
+      document.getElementById('pilotSelectionModal').style.display = 'none';
+      pilotSelectionContext = null;
+    }
+    
+    function updatePilotCheckboxes() {
+      const checkboxes = document.querySelectorAll('.pilot-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = selectedPilotIds.includes(cb.value);
+      });
+    }
+    
+    function confirmPilotSelection() {
+      const checkboxes = document.querySelectorAll('.pilot-checkbox:checked');
+      selectedPilotIds = Array.from(checkboxes).map(cb => cb.value);
+      
+      if (pilotSelectionContext === 'add') {
+        // Update the form
+        document.getElementById('selectedPilotIds').value = JSON.stringify(selectedPilotIds);
+        
+        // Update the display text
+        if (selectedPilotIds.length === 0) {
+          document.getElementById('selectedPilotsText').textContent = 'No pilots selected (will assign to all active pilots)';
+        } else {
+          const pilotNames = Array.from(checkboxes).map(cb => cb.parentElement.textContent.trim());
+          document.getElementById('selectedPilotsText').textContent = `Selected: ${pilotNames.join(', ')}`;
+        }
+      } else if (pilotSelectionContext && pilotSelectionContext.type === 'edit') {
+        // Update the transaction's pilot associations
+        updateTransactionPilots(pilotSelectionContext.transactionId, selectedPilotIds);
+      }
+      
+      closePilotSelectionModal();
+    }
+    
+    async function updateTransactionPilots(transactionId, pilotIds) {
+      try {
+        const response = await fetch(`/api/manna/transaction/${transactionId}/pilots`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pilotIds })
+        });
+        
+        if (response.ok) {
+          showNotification('Transaction pilot assignments updated!');
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update pilot assignments');
+        }
+      } catch (error) {
+        console.error('Error updating transaction pilots:', error);
+        alert('Error updating pilot assignments');
+      }
+    }
+    
+    function editTransactionPilots(transactionId) {
+      openPilotSelectionModal(transactionId);
+    }
+    
+    // Transaction filtering
+    function filterTransactions(filter, event) {
+      // Update active pill
+      document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Filter transactions
+      const transactions = document.querySelectorAll('.transaction-item');
+      transactions.forEach(txn => {
+        const isAssigned = txn.getAttribute('data-assigned') === 'true';
+        
+        if (filter === 'all') {
+          txn.style.display = '';
+        } else if (filter === 'assigned') {
+          txn.style.display = isAssigned ? '' : 'none';
+        } else if (filter === 'unassigned') {
+          txn.style.display = !isAssigned ? '' : 'none';
         }
       });
     }
@@ -2116,6 +2407,15 @@
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData);
         
+        // Parse pilotIds from JSON string
+        if (data.pilotIds) {
+          try {
+            data.pilotIds = JSON.parse(data.pilotIds);
+          } catch (e) {
+            data.pilotIds = [];
+          }
+        }
+        
         try {
           const response = await fetch('/api/manna/transaction', {
             method: 'POST',
@@ -2125,15 +2425,16 @@
           
           if (response.ok) {
             const result = await response.json();
-            document.getElementById('overviewMannaBalance').textContent = result.manna.balance;
-            document.getElementById('directBalance').value = result.manna.balance;
             document.getElementById('overviewMannaForm').reset();
+            document.getElementById('selectedPilotIds').value = '';
+            document.getElementById('selectedPilotsText').textContent = 'No pilots selected (will assign to all active pilots)';
             showNotification('Transaction added successfully!');
           } else {
             const errorData = await response.json();
             alert(errorData.message || 'Failed to add transaction');
           }
         } catch (error) {
+          console.error('Error adding transaction:', error);
           alert('Error adding transaction');
         }
       });
@@ -2559,6 +2860,106 @@
         }
       } catch (error) {
         alert('Error updating related jobs');
+      }
+    }
+    
+    // ==================== PILOT BALANCE HISTORY ====================
+    async function openPilotBalanceHistoryModal(pilotId) {
+      try {
+        // Fetch pilot balance and transaction history from API
+        const response = await fetch(`/api/pilots/${pilotId}/balance`);
+        if (!response.ok) {
+          alert('Failed to load pilot balance history');
+          return;
+        }
+        
+        const data = await response.json();
+        const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === pilotId);
+        
+        if (!pilotData) {
+          alert('Pilot not found');
+          return;
+        }
+        
+        // Set pilot ID and balance
+        document.getElementById('pilotBalanceHistoryPilotId').value = pilotId;
+        document.getElementById('pilotBalanceHistoryTotal').textContent = data.balance || 0;
+        
+        // Create transaction list (sorted newest to top)
+        const transactions = data.transactions || [];
+        
+        if (transactions.length === 0) {
+          document.getElementById('pilotBalanceHistoryList').innerHTML = '<p style="color: #b0b0b0;">No transactions associated with this pilot</p>';
+        } else {
+          const listHtml = transactions.map(transaction => {
+            const date = new Date(transaction.date).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+            const amountColor = transaction.amount >= 0 ? '#66BB6A' : '#f44336';
+            const amountSign = transaction.amount >= 0 ? '+' : '';
+            
+            return `
+              <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #444; border-radius: 3px; background-color: #2a2a2a;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                  <input type="checkbox" value="${transaction.id}" checked class="pilot-balance-transaction-checkbox" style="margin-top: 3px; flex-shrink: 0;">
+                  <div style="flex-grow: 1;">
+                    <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>Date:</strong> ${date}</div>
+                    <div style="color: #b0b0b0; margin-bottom: 5px;">
+                      <strong>Amount:</strong> 
+                      <span style="color: ${amountColor}">${amountSign}${transaction.amount}</span>
+                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    </div>
+                    <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>Description:</strong> ${transaction.description}</div>
+                    <div style="color: #b0b0b0;">
+                      <strong>Balance After:</strong> ${transaction.pilotBalance}
+                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    </div>
+                  </div>
+                </label>
+              </div>
+            `;
+          }).join('');
+          
+          document.getElementById('pilotBalanceHistoryList').innerHTML = listHtml;
+        }
+        
+        document.getElementById('pilotBalanceHistoryModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error loading pilot balance history:', error);
+        alert('Error loading pilot balance history');
+      }
+    }
+    
+    function closePilotBalanceHistoryModal() {
+      document.getElementById('pilotBalanceHistoryModal').style.display = 'none';
+    }
+    
+    async function savePilotBalanceHistory() {
+      const pilotId = document.getElementById('pilotBalanceHistoryPilotId').value;
+      
+      // Get selected transaction IDs
+      const checkboxes = document.querySelectorAll('.pilot-balance-transaction-checkbox:checked');
+      const personalTransactions = Array.from(checkboxes).map(cb => cb.value);
+      
+      try {
+        const response = await fetch(`/api/pilots/${pilotId}/personal-transactions`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personalTransactions: personalTransactions
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Balance history updated successfully');
+          closePilotBalanceHistoryModal();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update balance history');
+        }
+      } catch (error) {
+        console.error('Error updating balance history:', error);
+        alert('Error updating balance history');
       }
     }
     
