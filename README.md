@@ -106,10 +106,10 @@ At the same folder level you ran `npm install`, now run `git pull`.
 - Assign missions to factions
 - Upload mission logos
 
-**Manage Money**
+**Manage Manna**
 - Add or remove funds
 - Record transactions
-- Edit transaction history
+- Edit transaction history per pilot
 
 **Manage Base**
 - Configure all base modules
