@@ -582,7 +582,7 @@
 </head><body><div class="admin-header">
     <h1>LANCER Job Board - Admin Panel</h1>
     <p>Manage job postings, base modules, factions, and global settings</p>
-    <a href="/" class="logout-link">Logout</a>
+    <a href="/logout" class="logout-link">Logout</a>
   </div>
   <!-- Tab Navigation -->
   <div class="tab-navigation">
@@ -643,6 +643,18 @@
             Open Table (Show pilot personal operation progress)
           </label>
           <input type="checkbox" id="settingsOpenTable" name="openTable" value="true" <%= settings.openTable ? 'checked' : '' %> style="width: auto; margin-left: 10px; vertical-align: middle;">
+        </div>
+        
+        <div class="form-group">
+          <label for="settingsClientPassword">Pilot Password (CLIENT Mode Access)</label>
+          <input type="text" id="settingsClientPassword" name="clientPassword" value="<%= settings.clientPassword || '' %>" placeholder="Alphanumeric only, empty for no password" pattern="[A-Za-z0-9]*">
+          <small style="display: block; color: #b0b0b0; margin-top: 5px;">Only alphanumeric characters allowed. Leave empty to allow access without password.</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="settingsAdminPassword">Admin Password (ADMIN Mode Access)</label>
+          <input type="text" id="settingsAdminPassword" name="adminPassword" value="<%= settings.adminPassword || '' %>" placeholder="Alphanumeric only, empty for no password" pattern="[A-Za-z0-9]*">
+          <small style="display: block; color: #b0b0b0; margin-top: 5px;">Only alphanumeric characters allowed. Leave empty to allow access without password.</small>
         </div>
         
         <button type="submit" class="btn btn-primary">Save Settings</button>

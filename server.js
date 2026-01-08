@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
 const helpers = require('./helpers');
@@ -6,15 +7,37 @@ const helpers = require('./helpers');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// pkg detection and path configuration
+const IS_PKG = typeof process.pkg !== 'undefined';
+const BASE_PATH = IS_PKG ? path.dirname(process.execPath) : __dirname;
+
 // SSE client management
 const sseClients = new Set();
 
-// Constants
-const PASSWORDS = {
-  CLIENT: 'IMHOTEP',
-  ADMIN: 'TARASQUE'
-};
+// Middleware
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
+// Serve static files (no session needed)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/emblems', express.static(path.join(BASE_PATH, 'logo_art')));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'lancer-job-board-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Constants
 const FILE_UPLOAD = {
   MAX_SIZE: 10 * 1024 * 1024, // 10MB
   ALLOWED_TYPES: new Set(['image/png', 'image/jpeg', 'image/bmp'])
@@ -27,25 +50,73 @@ const BASE_MODULES = {
   TOTAL_COUNT: 15
 };
 
-// Middleware
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(express.static('public'));
-app.use('/emblems', express.static('logo_art'));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+// Authentication middleware
+function requireAuth(role) {
+  return (req, res, next) => {
+    if (!req.session || !req.session.role) {
+      // For API endpoints, return JSON error instead of redirect
+      if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+      return res.redirect('/?error=unauthorized');
+    }
+    
+    if (role && req.session.role !== role) {
+      // For API endpoints, return JSON error instead of redirect
+      if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      return res.redirect('/?error=unauthorized');
+    }
+    
+    next();
+  };
+}
 
-// Data file paths
-const DATA_FILE = path.join(__dirname, 'data', 'jobs.json');
-const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json');
-const MANNA_FILE = path.join(__dirname, 'data', 'manna.json');
-const BASE_FILE = path.join(__dirname, 'data', 'base.json');
-const FACTIONS_FILE = path.join(__dirname, 'data', 'factions.json');
-const PILOTS_FILE = path.join(__dirname, 'data', 'pilots.json');
+// Middleware for any authenticated user (CLIENT or ADMIN)
+const requireAnyAuth = requireAuth();
 
-// Ensure data directory exists
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'));
+// Middleware for CLIENT routes (allows both CLIENT and ADMIN)
+const requireClientAuth = (req, res, next) => {
+  if (!req.session || !req.session.role) {
+    // For API endpoints, return JSON error instead of redirect
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    return res.redirect('/?error=unauthorized');
+  }
+  
+  // Allow both 'client' and 'admin' roles to access CLIENT routes
+  if (req.session.role === 'client' || req.session.role === 'admin') {
+    return next();
+  }
+  
+  // For API endpoints, return JSON error instead of redirect
+  if (req.path.startsWith('/api/')) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+  return res.redirect('/?error=unauthorized');
+};
+
+// Middleware for ADMIN routes
+const requireAdminAuth = requireAuth('admin');
+
+// Data file paths (external to binary for read/write operations)
+const DATA_DIR = path.join(BASE_PATH, 'data');
+const LOGO_ART_DIR = path.join(BASE_PATH, 'logo_art');
+const DATA_FILE = path.join(DATA_DIR, 'jobs.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const MANNA_FILE = path.join(DATA_DIR, 'manna.json');
+const BASE_FILE = path.join(DATA_DIR, 'base.json');
+const FACTIONS_FILE = path.join(DATA_DIR, 'factions.json');
+const PILOTS_FILE = path.join(DATA_DIR, 'pilots.json');
+
+// Ensure data and logo_art directories exist
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(LOGO_ART_DIR)) {
+  fs.mkdirSync(LOGO_ART_DIR, { recursive: true });
 }
 
 // Initialize settings file with default data if it doesn't exist
@@ -418,7 +489,9 @@ const DEFAULT_SETTINGS = {
   colorScheme: 'grey',
   userGroup: 'FREELANCE_OPERATORS',
   operationProgress: 0,
-  openTable: false
+  openTable: false,
+  clientPassword: 'IMHOTEP',
+  adminPassword: 'TARASQUE'
 };
 
 // Read settings from file
@@ -791,10 +864,10 @@ function migratePilotsIfNeeded() {
 const multer = require('multer');
 const potrace = require('potrace');
 
-const uploadDir = path.join(__dirname, 'logo_art');
+const uploadDir = LOGO_ART_DIR;
 fs.mkdirSync(uploadDir, { recursive: true });
 
-const tmpUploadDir = path.join(__dirname, 'data', 'uploads_tmp');
+const tmpUploadDir = path.join(DATA_DIR, 'uploads_tmp');
 fs.mkdirSync(tmpUploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -909,7 +982,7 @@ function broadcastSSE(eventType, data) {
 }
 
 // SSE endpoint
-app.get('/api/sse', (req, res) => {
+app.get('/api/sse', requireAnyAuth, (req, res) => {
   // Set headers for SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -946,21 +1019,36 @@ app.get('/', (req, res) => {
 
 app.post('/authenticate', (req, res) => {
   const password = req.body.password;
-  if (password === PASSWORDS.CLIENT) {
+  const settings = readSettings();
+  
+  // Check against passwords from settings
+  if (password === settings.clientPassword) {
+    req.session.role = 'client';
     res.redirect('/client/overview');
-  } else if (password === PASSWORDS.ADMIN) {
+  } else if (password === settings.adminPassword) {
+    req.session.role = 'admin';
     res.redirect('/admin');
   } else {
     res.redirect('/?error=invalid');
   }
 });
 
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    }
+    res.redirect('/');
+  });
+});
+
 // Client routes
-app.get('/client', (req, res) => {
+app.get('/client', requireClientAuth, (req, res) => {
   res.redirect('/client/overview');
 });
 
-app.get('/client/overview', (req, res) => {
+app.get('/client/overview', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const manna = readManna();
   const pilots = readPilots();
@@ -988,7 +1076,7 @@ app.get('/client/overview', (req, res) => {
   });
 });
 
-app.get('/client/finances', (req, res) => {
+app.get('/client/finances', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const manna = readManna();
   const pilots = readPilots();
@@ -1015,7 +1103,7 @@ app.get('/client/finances', (req, res) => {
   });
 });
 
-app.get('/client/jobs', (req, res) => {
+app.get('/client/jobs', requireClientAuth, (req, res) => {
   const allJobs = readJobs();
   // Filter to show only Active jobs for clients
   const jobs = allJobs.filter(job => job.state === 'Active');
@@ -1028,13 +1116,13 @@ app.get('/client/jobs', (req, res) => {
   res.render('client-jobs', { jobs: enrichedJobs, settings, colorScheme: settings.colorScheme });
 });
 
-app.get('/client/base', (req, res) => {
+app.get('/client/base', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const base = readBase();
   res.render('client-base', { settings, colorScheme: settings.colorScheme, base });
 });
 
-app.get('/client/factions', (req, res) => {
+app.get('/client/factions', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const factions = readFactions();
   const jobs = readJobs();
@@ -1045,7 +1133,7 @@ app.get('/client/factions', (req, res) => {
   res.render('client-factions', { settings, colorScheme: settings.colorScheme, factions: enrichedFactions });
 });
 
-app.get('/client/pilots', (req, res) => {
+app.get('/client/pilots', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const pilots = readPilots();
   const manna = readManna();
@@ -1053,14 +1141,14 @@ app.get('/client/pilots', (req, res) => {
   res.render('client-pilots', { settings, colorScheme: settings.colorScheme, pilots: enrichedPilots, manna });
 });
 
-app.get('/admin', (req, res) => {
+app.get('/admin', requireAdminAuth, (req, res) => {
   const jobs = readJobs();
   const settings = readSettings();
   const manna = readManna();
   const base = readBase();
   const factions = readFactions();
   const pilots = readPilots();
-  const emblemFiles = fs.readdirSync(path.join(__dirname, 'logo_art'))
+  const emblemFiles = fs.readdirSync(LOGO_ART_DIR)
     .filter(file => file.endsWith('.svg'))
     .sort();
   
@@ -1099,7 +1187,7 @@ app.get('/admin', (req, res) => {
 });
 
 // API endpoints for admin operations
-app.get('/api/jobs', (req, res) => {
+app.get('/api/jobs', requireAnyAuth, (req, res) => {
   const jobs = readJobs();
   const factions = readFactions();
   
@@ -1109,7 +1197,7 @@ app.get('/api/jobs', (req, res) => {
   res.json(enrichedJobs);
 });
 
-app.post('/api/jobs', (req, res) => {
+app.post('/api/jobs', requireAdminAuth, (req, res) => {
   const jobs = readJobs();
   const factions = readFactions();
   
@@ -1141,7 +1229,7 @@ app.post('/api/jobs', (req, res) => {
   res.json({ success: true, job: newJob });
 });
 
-app.put('/api/jobs/:id', (req, res) => {
+app.put('/api/jobs/:id', requireAdminAuth, (req, res) => {
   const jobs = readJobs();
   const factions = readFactions();
   
@@ -1177,7 +1265,7 @@ app.put('/api/jobs/:id', (req, res) => {
   res.json({ success: true, job: jobs[index] });
 });
 
-app.delete('/api/jobs/:id', (req, res) => {
+app.delete('/api/jobs/:id', requireAdminAuth, (req, res) => {
   let jobs = readJobs();
   jobs = jobs.filter(j => j.id !== req.params.id);
   writeJobs(jobs);
@@ -1189,7 +1277,7 @@ app.delete('/api/jobs/:id', (req, res) => {
 });
 
 // API endpoint to update job state only
-app.put('/api/jobs/:id/state', (req, res) => {
+app.put('/api/jobs/:id/state', requireAdminAuth, (req, res) => {
   const jobs = readJobs();
   const index = jobs.findIndex(j => j.id === req.params.id);
   
@@ -1214,12 +1302,12 @@ app.put('/api/jobs/:id/state', (req, res) => {
 });
 
 // API endpoints for settings
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', requireAnyAuth, (req, res) => {
   const settings = readSettings();
   res.json(settings);
 });
 
-app.put('/api/settings', (req, res) => {
+app.put('/api/settings', requireAdminAuth, (req, res) => {
   // Validate portal heading
   const headingValidation = helpers.validateRequiredString(req.body.portalHeading, 'Portal Heading', 100);
   if (!headingValidation.valid) {
@@ -1260,6 +1348,27 @@ app.put('/api/settings', (req, res) => {
   // Parse openTable boolean
   const openTable = req.body.openTable === 'true' || req.body.openTable === true;
   
+  // Validate passwords (alphanumeric only, empty allowed)
+  const clientPasswordValidation = helpers.validatePassword(req.body.clientPassword, 'Pilot Password');
+  if (!clientPasswordValidation.valid) {
+    return res.status(400).json({ success: false, message: clientPasswordValidation.message });
+  }
+  
+  const adminPasswordValidation = helpers.validatePassword(req.body.adminPassword, 'Admin Password');
+  if (!adminPasswordValidation.valid) {
+    return res.status(400).json({ success: false, message: adminPasswordValidation.message });
+  }
+  
+  // Validate that CLIENT and ADMIN passwords are different (if both are non-empty)
+  if (clientPasswordValidation.value !== '' && 
+      adminPasswordValidation.value !== '' && 
+      clientPasswordValidation.value === adminPasswordValidation.value) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Pilot Password and Admin Password must be different' 
+    });
+  }
+  
   const settings = {
     portalHeading: headingValidation.value,
     unt: unt.trim(),
@@ -1267,7 +1376,9 @@ app.put('/api/settings', (req, res) => {
     colorScheme: colorScheme,
     userGroup: userGroupValidation.value,
     operationProgress: operationProgress,
-    openTable: openTable
+    openTable: openTable,
+    clientPassword: clientPasswordValidation.value,
+    adminPassword: adminPasswordValidation.value
   };
   
   writeSettings(settings);
@@ -1279,7 +1390,7 @@ app.put('/api/settings', (req, res) => {
 });
 
 // API endpoint to delete emblem
-app.delete('/api/emblems/:filename', async (req, res) => {
+app.delete('/api/emblems/:filename', requireAdminAuth, async (req, res) => {
   const filename = req.params.filename;
   
   // Validate filename
@@ -1326,13 +1437,13 @@ app.delete('/api/emblems/:filename', async (req, res) => {
 });
 
 // Manna API endpoints
-app.get('/api/manna', (req, res) => {
+app.get('/api/manna', requireAnyAuth, (req, res) => {
   const manna = readManna();
   const balances = calculateBalancesFromPilots();
   res.json({ ...manna, balances });
 });
 
-app.post('/api/manna/transaction', (req, res) => {
+app.post('/api/manna/transaction', requireAdminAuth, (req, res) => {
   const rawAmount = req.body.amount;
   const parsedAmount = Number.isInteger(rawAmount) ? rawAmount : parseInt(rawAmount, 10);
   const description = req.body.description || '';
@@ -1431,7 +1542,7 @@ app.post('/api/manna/transaction', (req, res) => {
   res.json({ success: true, manna, transaction: newTransaction, balances });
 });
 
-app.put('/api/manna/transaction/:id', (req, res) => {
+app.put('/api/manna/transaction/:id', requireAdminAuth, (req, res) => {
   const manna = readManna();
   const transactionIndex = manna.transactions.findIndex(t => t.id === req.params.id);
   
@@ -1484,7 +1595,7 @@ app.put('/api/manna/transaction/:id', (req, res) => {
   res.json({ success: true, transaction: manna.transactions[transactionIndex] });
 });
 
-app.delete('/api/manna/transaction/:id', (req, res) => {
+app.delete('/api/manna/transaction/:id', requireAdminAuth, (req, res) => {
   const manna = readManna();
   const transactionIndex = manna.transactions.findIndex(t => t.id === req.params.id);
   
@@ -1529,7 +1640,7 @@ app.delete('/api/manna/transaction/:id', (req, res) => {
 });
 
 // Update pilot associations for a transaction
-app.put('/api/manna/transaction/:id/pilots', (req, res) => {
+app.put('/api/manna/transaction/:id/pilots', requireAdminAuth, (req, res) => {
   const manna = readManna();
   const transaction = manna.transactions.find(t => t.id === req.params.id);
   
@@ -1603,12 +1714,12 @@ app.put('/api/manna/transaction/:id/pilots', (req, res) => {
 });
 
 // Base API endpoints
-app.get('/api/base', (req, res) => {
+app.get('/api/base', requireAnyAuth, (req, res) => {
   const base = readBase();
   res.json(base);
 });
 
-app.put('/api/base', (req, res) => {
+app.put('/api/base', requireAdminAuth, (req, res) => {
   const modules = req.body.modules;
   
   if (!Array.isArray(modules) || modules.length !== BASE_MODULES.TOTAL_COUNT) {
@@ -1627,7 +1738,7 @@ app.put('/api/base', (req, res) => {
 });
 
 // Factions API endpoints
-app.get('/api/factions', (req, res) => {
+app.get('/api/factions', requireAnyAuth, (req, res) => {
   const factions = readFactions();
   const jobs = readJobs();
   
@@ -1637,7 +1748,7 @@ app.get('/api/factions', (req, res) => {
   res.json(enrichedFactions);
 });
 
-app.post('/api/factions', (req, res) => {
+app.post('/api/factions', requireAdminAuth, (req, res) => {
   // Validate faction data
   const validation = validateFactionData(req.body, uploadDir);
   if (!validation.valid) {
@@ -1668,7 +1779,7 @@ app.post('/api/factions', (req, res) => {
   res.json({ success: true, faction: enrichedFaction });
 });
 
-app.put('/api/factions/:id', (req, res) => {
+app.put('/api/factions/:id', requireAdminAuth, (req, res) => {
   const factions = readFactions();
   const index = factions.findIndex(f => f.id === req.params.id);
   
@@ -1704,7 +1815,7 @@ app.put('/api/factions/:id', (req, res) => {
   res.json({ success: true, faction: enrichedFaction });
 });
 
-app.delete('/api/factions/:id', (req, res) => {
+app.delete('/api/factions/:id', requireAdminAuth, (req, res) => {
   let factions = readFactions();
   const jobs = readJobs();
   factions = factions.filter(f => f.id !== req.params.id);
@@ -1718,7 +1829,7 @@ app.delete('/api/factions/:id', (req, res) => {
 });
 
 // Pilots API endpoints
-app.get('/api/pilots', (req, res) => {
+app.get('/api/pilots', requireAnyAuth, (req, res) => {
   const pilots = readPilots();
   const manna = readManna();
   // Enrich pilots with balance information for consistency with SSE broadcasts
@@ -1726,7 +1837,7 @@ app.get('/api/pilots', (req, res) => {
   res.json(enrichedPilots);
 });
 
-app.post('/api/pilots', (req, res) => {
+app.post('/api/pilots', requireAdminAuth, (req, res) => {
   // Read manna data for transaction validation
   const manna = readManna();
   
@@ -1761,7 +1872,7 @@ app.post('/api/pilots', (req, res) => {
   res.json({ success: true, pilot: enrichedNewPilot });
 });
 
-app.put('/api/pilots/:id', (req, res) => {
+app.put('/api/pilots/:id', requireAdminAuth, (req, res) => {
   const pilots = readPilots();
   const index = pilots.findIndex(p => p.id === req.params.id);
   
@@ -1801,7 +1912,7 @@ app.put('/api/pilots/:id', (req, res) => {
   res.json({ success: true, pilot: enrichedPilot });
 });
 
-app.delete('/api/pilots/:id', (req, res) => {
+app.delete('/api/pilots/:id', requireAdminAuth, (req, res) => {
   let pilots = readPilots();
   pilots = pilots.filter(p => p.id !== req.params.id);
   writePilots(pilots);
@@ -1813,7 +1924,7 @@ app.delete('/api/pilots/:id', (req, res) => {
 });
 
 // Update pilot reserves only (CLIENT-side endpoint)
-app.put('/api/pilots/:id/reserves', (req, res) => {
+app.put('/api/pilots/:id/reserves', requireAnyAuth, (req, res) => {
   const pilots = readPilots();
   const index = pilots.findIndex(p => p.id === req.params.id);
   
@@ -1832,7 +1943,7 @@ app.put('/api/pilots/:id/reserves', (req, res) => {
 });
 
 // Get pilot balance and transaction history
-app.get('/api/pilots/:id/balance', (req, res) => {
+app.get('/api/pilots/:id/balance', requireAnyAuth, (req, res) => {
   const pilots = readPilots();
   const manna = readManna();
   const pilot = pilots.find(p => p.id === req.params.id);
@@ -1868,7 +1979,7 @@ app.get('/api/pilots/:id/balance', (req, res) => {
 });
 
 // Update pilot's personal transactions
-app.put('/api/pilots/:id/personal-transactions', (req, res) => {
+app.put('/api/pilots/:id/personal-transactions', requireAdminAuth, (req, res) => {
   const pilots = readPilots();
   const index = pilots.findIndex(p => p.id === req.params.id);
   
@@ -1916,7 +2027,7 @@ app.put('/api/pilots/:id/personal-transactions', (req, res) => {
 });
 
 // Progress all jobs endpoint
-app.post('/api/jobs/progress-all', (req, res) => {
+app.post('/api/jobs/progress-all', requireAdminAuth, (req, res) => {
   const jobs = readJobs();
   const pilots = readPilots();
   
@@ -1963,7 +2074,7 @@ app.post('/api/jobs/progress-all', (req, res) => {
 });
 
 // Progress operation for active pilots endpoint
-app.post('/api/pilots/progress-operation', (req, res) => {
+app.post('/api/pilots/progress-operation', requireAdminAuth, (req, res) => {
   const pilots = readPilots();
   
   // Track pilots that were reset to 0
@@ -2004,4 +2115,5 @@ app.post('/api/pilots/progress-operation', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Navigate to localhost:${PORT} in your browser to access the application UI.`);
 });

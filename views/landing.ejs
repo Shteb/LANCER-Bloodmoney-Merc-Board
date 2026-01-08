@@ -49,8 +49,12 @@
       <input type="password" name="password" placeholder="ACCESS CODE" required autofocus>
       <button type="submit">> AUTHENTICATE</button>
     </form>
-    <% if (typeof error !== 'undefined') { %>
-      <p class="error-message">> ACCESS DENIED: INVALID CODE_</p>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <% if (error === 'invalid') { %>
+        <p class="error-message">> ACCESS DENIED: INVALID CODE_</p>
+      <% } else if (error === 'unauthorized') { %>
+        <p class="error-message">> ACCESS DENIED: UNAUTHORIZED_</p>
+      <% } %>
     <% } %>
   </div>
 </body>

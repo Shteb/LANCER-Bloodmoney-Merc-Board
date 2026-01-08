@@ -1,5 +1,5 @@
 /**
- * Helper functions for the LANCER Bloodmoney Merc Board application
+ * Helper functions for the LANCER RPG Job Board application
  */
 
 const crypto = require('crypto');
@@ -192,6 +192,33 @@ function validateInteger(value, fieldName, min = null, max = null) {
   }
 
   return { valid: true, value: parsed };
+}
+
+/**
+ * Validate password (alphanumeric only, allows empty)
+ * @param {string} password - Password to validate
+ * @param {string} fieldName - Field name for error message
+ * @returns {Object} { valid: boolean, value: string, message?: string }
+ */
+function validatePassword(password, fieldName) {
+  // Convert to string and handle null/undefined
+  const pwd = (password === null || password === undefined) ? '' : String(password);
+  
+  // Empty password is allowed (stored as empty string)
+  if (pwd === '') {
+    return { valid: true, value: '' };
+  }
+  
+  // Check if alphanumeric only
+  const alphanumericPattern = /^[A-Za-z0-9]+$/;
+  if (!alphanumericPattern.test(pwd)) {
+    return { 
+      valid: false, 
+      message: `${fieldName} must contain only alphanumeric characters (letters and numbers)` 
+    };
+  }
+  
+  return { valid: true, value: pwd };
 }
 
 /**
@@ -473,6 +500,7 @@ module.exports = {
   validateEmblem,
   validateRequiredString,
   validateInteger,
+  validatePassword,
   validateJobState,
   validateFactionId,
   validateTransactionIds,

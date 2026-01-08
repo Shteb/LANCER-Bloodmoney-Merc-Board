@@ -2,15 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lancer-job-board.local/schemas/settings.schema.json",
   "title": "Settings",
-  "description": "Global settings for the LANCER Bloodmoney Merc Board application",
+  "description": "Global settings for the LANCER RPG Job Board application",
   "type": "object",
-  "required": [
-    "portalHeading",
-    "currentGalacticPos",
-    "colorScheme",
-    "userGroup",
-    "operationProgress"
-  ],
+  "required": ["portalHeading", "currentGalacticPos", "colorScheme", "userGroup", "operationProgress", "clientPassword", "adminPassword"],
   "properties": {
     "portalHeading": {
       "type": "string",
@@ -29,12 +23,7 @@
     "colorScheme": {
       "type": "string",
       "description": "Color theme",
-      "enum": [
-        "grey",
-        "orange",
-        "green",
-        "blue"
-      ]
+      "enum": ["grey", "orange", "green", "blue"]
     },
     "userGroup": {
       "type": "string",
@@ -51,6 +40,16 @@
     "openTable": {
       "type": "boolean",
       "description": "Open table flag (optional, defaults to false)"
+    },
+    "clientPassword": {
+      "type": "string",
+      "description": "Password for CLIENT mode access (alphanumeric only, case-sensitive)",
+      "pattern": "^[A-Za-z0-9]*$"
+    },
+    "adminPassword": {
+      "type": "string",
+      "description": "Password for ADMIN mode access (alphanumeric only, case-sensitive)",
+      "pattern": "^[A-Za-z0-9]*$"
     }
   },
   "additionalProperties": false

@@ -1,10 +1,14 @@
 {
-  "name": "lancer-bloodmoney-merc-board",
+  "name": "lancer-rpg-job-board",
   "version": "1.0.0",
   "description": "A terminal-styled job board for LANCER RPG with admin and client interfaces",
   "main": "server.js",
+  "bin": {
+    "lancer-rpg-job-board": "server.js"
+  },
   "scripts": {
     "start": "node server.js",
+    "build": "pkg .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -17,7 +21,21 @@
   "dependencies": {
     "ejs": "^3.1.10",
     "express": "^5.2.1",
+    "express-session": "^1.18.2",
     "multer": "^2.0.2",
     "potrace": "^2.1.8"
+  },
+  "pkg": {
+    "assets": [
+      "views/**/*",
+      "public/**/*",
+      "schemas/**/*"
+    ],
+    "outputPath": "dist",
+    "targets": [
+      "node18-linux-x64",
+      "node18-win-x64",
+      "node18-macos-x64"
+    ]
   }
 }
