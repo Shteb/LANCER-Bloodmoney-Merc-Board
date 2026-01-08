@@ -58,6 +58,10 @@
         "type": "string",
         "format": "uuid"
       }
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only admin notes (optional)"
     }
   },
   "additionalProperties": false,

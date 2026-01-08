@@ -840,7 +840,12 @@
         <label for="jobAdditionalPay">Additional Pay</label>
         <input type="text" id="jobAdditionalPay" name="additionalPay">
       </div>
-      
+
+      <div class="form-group">
+        <label for="jobAdminLog">Admin Log (GM Only)</label>
+        <textarea id="jobAdminLog" name="adminLog" placeholder="GM-only notes about this job"></textarea>
+      </div>
+
       <div class="form-group">
         <label for="jobEmblem">Emblem</label>
         <input type="hidden" id="jobEmblem" name="emblem" value="">
@@ -930,6 +935,11 @@
               <img src="/emblems/<%= job.emblem %>" alt="<%= job.emblem.replace('.svg', '') %>" class="emblem-display">
             </div>
           <% } %>
+          <% if (job.adminLog && job.adminLog.trim()) { %>
+            <div class="job-item-field">
+              <strong>Admin Log (GM Only):</strong> <%= job.adminLog %>
+            </div>
+          <% } %>
           <div class="job-item-actions">
             <button class="btn btn-edit" onclick="editJob('<%= job.id %>')">Edit</button>
             <% if (job.state === 'Active') { %>
@@ -1015,7 +1025,12 @@
           <label for="editJobAdditionalPay">Additional Pay</label>
           <input type="text" id="editJobAdditionalPay" name="additionalPay">
         </div>
-        
+
+        <div class="form-group">
+          <label for="editJobAdminLog">Admin Log (GM Only)</label>
+          <textarea id="editJobAdminLog" name="adminLog" placeholder="GM-only notes about this job"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="editJobEmblem">Emblem</label>
           <input type="hidden" id="editJobEmblem" name="emblem" value="">
@@ -1055,12 +1070,16 @@
                 <label>Title</label>
                 <input type="text" name="modules[<%= i %>][title]" value="<%= base.modules[i].title %>" placeholder="Optional">
               </div>
-              <div class="form-group">
-                <label>Description</label>
-                <textarea name="modules[<%= i %>][description]" placeholder="Optional"><%= base.modules[i].description %></textarea>
-              </div>
-              <input type="hidden" name="modules[<%= i %>][type]" value="Core">
-              <input type="hidden" name="modules[<%= i %>][disabled]" value="false">
+                <div class="form-group">
+                  <label>Description</label>
+                  <textarea name="modules[<%= i %>][description]" placeholder="Optional"><%= base.modules[i].description %></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Admin Log (GM Only)</label>
+                  <textarea name="modules[<%= i %>][adminLog]" placeholder="GM-only notes about this module"><%= base.modules[i].adminLog || '' %></textarea>
+                </div>
+                <input type="hidden" name="modules[<%= i %>][type]" value="Core">
+                <input type="hidden" name="modules[<%= i %>][disabled]" value="false">
             </div>
           <% } %>
         </div>
@@ -1074,12 +1093,16 @@
                 <label>Title</label>
                 <input type="text" name="modules[<%= i %>][title]" value="<%= base.modules[i].title %>" placeholder="Optional">
               </div>
-              <div class="form-group">
-                <label>Description</label>
-                <textarea name="modules[<%= i %>][description]" placeholder="Optional"><%= base.modules[i].description %></textarea>
-              </div>
-              <input type="hidden" name="modules[<%= i %>][type]" value="Major">
-              <input type="hidden" name="modules[<%= i %>][disabled]" value="false">
+                <div class="form-group">
+                  <label>Description</label>
+                  <textarea name="modules[<%= i %>][description]" placeholder="Optional"><%= base.modules[i].description %></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Admin Log (GM Only)</label>
+                  <textarea name="modules[<%= i %>][adminLog]" placeholder="GM-only notes about this module"><%= base.modules[i].adminLog || '' %></textarea>
+                </div>
+                <input type="hidden" name="modules[<%= i %>][type]" value="Major">
+                <input type="hidden" name="modules[<%= i %>][disabled]" value="false">
             </div>
           <% } %>
         </div>
@@ -1162,7 +1185,12 @@
             <input type="checkbox" id="pilotActive" name="active" value="true" checked style="width: auto;">
           </label>
         </div>
-        
+
+        <div class="form-group">
+          <label for="pilotAdminLog">Admin Log (GM Only)</label>
+          <textarea id="pilotAdminLog" name="adminLog" placeholder="GM-only notes about this pilot"></textarea>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-add-job">Add Pilot</button>
       </form>
     </div>
@@ -1199,6 +1227,11 @@
               <div class="job-item-field pilot-personal-operation-progress-display" style="display: <%= settings.openTable ? 'block' : 'none' %>">
                 <strong>Personal Operation Progress:</strong> <%= pilot.personalOperationProgress ?? 0 %>
               </div>
+              <% if (pilot.adminLog && pilot.adminLog.trim()) { %>
+                <div class="job-item-field">
+                  <strong>Admin Log (GM Only):</strong> <%= pilot.adminLog %>
+                </div>
+              <% } %>
               <div class="job-item-actions">
                 <button class="btn btn-edit" onclick="editPilot('<%= pilot.id %>')">Edit</button>
                 <button class="btn btn-neutral" onclick="openPilotRelatedJobsModal('<%= pilot.id %>')">Related Jobs</button>
@@ -1247,7 +1280,12 @@
           <label for="factionJobsFailedOffset">Jobs Failed Offset (This number is added to the failed jobs count)</label>
           <input type="number" id="factionJobsFailedOffset" name="jobsFailedOffset" value="0" required>
         </div>
-        
+
+        <div class="form-group">
+          <label for="factionAdminLog">Admin Log (GM Only)</label>
+          <textarea id="factionAdminLog" name="adminLog" placeholder="GM-only notes about this faction"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="factionEmblem">Emblem</label>
           <input type="hidden" id="factionEmblem" name="emblem" value="">
@@ -1287,6 +1325,11 @@
                   <strong>Emblem:</strong> <%= faction.emblem %>
                   <br>
                   <img src="/emblems/<%= faction.emblem %>" alt="<%= faction.emblem.replace('.svg', '') %>" class="emblem-display">
+                </div>
+              <% } %>
+              <% if (faction.adminLog && faction.adminLog.trim()) { %>
+                <div class="faction-item-field">
+                  <strong>Admin Log (GM Only):</strong> <%= faction.adminLog %>
                 </div>
               <% } %>
               <div class="faction-item-actions">
@@ -1340,7 +1383,12 @@
           <label for="editFactionJobsFailedOffset">Jobs Failed Offset (calculated from jobs + this offset)</label>
           <input type="number" id="editFactionJobsFailedOffset" name="jobsFailedOffset" required>
         </div>
-        
+
+        <div class="form-group">
+          <label for="editFactionAdminLog">Admin Log (GM Only)</label>
+          <textarea id="editFactionAdminLog" name="adminLog" placeholder="GM-only notes about this faction"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="editFactionEmblem">Emblem</label>
           <input type="hidden" id="editFactionEmblem" name="emblem" value="">
@@ -1470,7 +1518,12 @@
             <input type="checkbox" id="editPilotActive" name="active" value="true" style="width: auto;">
           </label>
         </div>
-        
+
+        <div class="form-group">
+          <label for="editPilotAdminLog">Admin Log (GM Only)</label>
+          <textarea id="editPilotAdminLog" name="adminLog" placeholder="GM-only notes about this pilot"></textarea>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save Changes</button>
       </form>
     </div>
@@ -2079,7 +2132,10 @@
       if (selectedEmblem) {
         selectedEmblem.classList.add('selected');
       }
-      
+
+      // Set admin log if it exists
+      document.getElementById('editJobAdminLog').value = jobData.adminLog || '';
+
       // Clear flag after form is populated
       isPopulatingJobEditForm = false;
       
@@ -2515,6 +2571,9 @@
       if (selectedEmblem) {
         selectedEmblem.classList.add('selected');
       }
+
+      // Set admin log if it exists
+      document.getElementById('editFactionAdminLog').value = factionData.adminLog || '';
       
       document.getElementById('editFactionModal').style.display = 'block';
     }

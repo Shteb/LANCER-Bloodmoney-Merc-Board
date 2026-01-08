@@ -1,0 +1,18 @@
+# Docker Compose configuration for pulling pre-built container images
+# This file uses the container image from GitHub Container Registry instead of building locally
+
+services:
+  board-app:
+    image: ghcr.io/e-lupo/lancer-bloodmoney-merc-board:latest
+    # To use a specific version, replace 'latest' with a version tag like 'v1.0.0'
+    # image: ghcr.io/e-lupo/lancer-bloodmoney-merc-board:v1.0.0
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=${PORT:-3000}
+      - CLIENT_KEY=${CLIENT_KEY:-IMHOTEP}
+      - ADMIN_KEY=${ADMIN_KEY:-TARASQUE}
+      - NODE_ENV=production
+    restart: unless-stopped

@@ -22,6 +22,10 @@
     "disabled": {
       "type": "boolean",
       "description": "Whether the module is disabled (last 2 minor modules can be toggled)"
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only admin notes (optional)"
     }
   },
   "additionalProperties": false

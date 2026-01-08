@@ -51,32 +51,36 @@
       "description": "Payment amount (e.g., '100m')",
       "minLength": 1
     },
-    "additionalPay": {
-      "type": "string",
-      "description": "Additional payment details (optional)"
-    },
-    "emblem": {
-      "type": "string",
-      "description": "SVG filename from logo_art directory (optional, empty string for no emblem)",
-      "pattern": "^([A-Za-z0-9_-]+\\.svg)?$"
-    },
-    "state": {
-      "type": "string",
-      "description": "Job state",
-      "enum": [
-        "Pending",
-        "Active",
-        "Complete",
-        "Failed",
-        "Ignored"
-      ],
-      "default": "Pending"
-    },
-    "factionId": {
-      "type": "string",
-      "description": "UUID of associated faction (optional, empty string if none)",
-      "pattern": "^(|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
-    }
+        "additionalPay": {
+          "type": "string",
+          "description": "Additional payment details (optional)"
+        },
+        "emblem": {
+          "type": "string",
+          "description": "SVG filename from logo_art directory (optional, empty string for no emblem)",
+          "pattern": "^([A-Za-z0-9_-]+\\.svg)?$"
+        },
+        "adminLog": {
+          "type": "string",
+          "description": "GM-only admin notes (optional)"
+        },
+        "state": {
+          "type": "string",
+          "description": "Job state",
+          "enum": [
+            "Pending",
+            "Active",
+            "Complete",
+            "Failed",
+            "Ignored"
+          ],
+          "default": "Pending"
+        },
+        "factionId": {
+          "type": "string",
+          "description": "UUID of associated faction (optional, empty string if none)",
+          "pattern": "^(|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
+        }
   },
   "additionalProperties": false
 }
