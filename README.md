@@ -49,19 +49,22 @@ At the same folder level you ran `npm install`, now run `git pull`.
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
 
 ### Overview Page
-<img width="1280" height="885" alt="image" src="https://github.com/user-attachments/assets/e3ba4bf2-1917-4090-8c93-41b4732d4788" />
+<img width="1264" height="1150" alt="image" src="https://github.com/user-attachments/assets/dd555b35-7611-4a89-ab97-5a115a8afa09" />
 
 ### Job Board page
 <img width="1280" height="844" alt="image" src="https://github.com/user-attachments/assets/b373b4fe-70bd-409d-baf9-08fcf0b6e840" />
 
 ### Base Management
-<img width="1280" height="1341" alt="image" src="https://github.com/user-attachments/assets/a2304865-3b28-489c-8306-def436f88445" />
+<img width="1257" height="1203" alt="image" src="https://github.com/user-attachments/assets/ed34d07b-fb08-4b6f-834e-ed313c46fa16" />
 
 ### Faction Relations
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/d0c4cc8b-4bb0-4f2d-9c77-342ee7379a91" />
 
+### Pilot List
+<img width="1267" height="975" alt="image" src="https://github.com/user-attachments/assets/bfb12bf0-ee84-4ad4-9f10-139337708647" />
+
 ### ADMIN page
-<img width="1157" height="2000" alt="image" src="https://github.com/user-attachments/assets/4cb88eaa-9325-4873-a9e1-a3dea1a49ad4" />
+<img width="1254" height="784" alt="image" src="https://github.com/user-attachments/assets/989403be-6ef4-42ae-a8f9-e48fb0e5b100" />
 
 ---
 
