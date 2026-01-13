@@ -11,11 +11,15 @@ Bound the held image in the Docker Protocol to achieve shape. Beware: it does no
    ```
 
 2. **Or use an existing image**:
-   for instance in a cloud server like Render or Google Cloud
+   from terminal:
      ```bash
      docker compose -f docker-compose.pull.yml up -d
      ```
-   and access the image over your server´s provided url. You can then (usually) configure the env variables over the server´s UI, without needing to create a new image. 
+   or in a cloud hosting service like Render or Google Cloud, access the latest published image from gcrh.io:
+      ```
+      ghcr.io/e-lupo/lancer-bloodmoney-merc-board:latest
+      ``` 
+   You can then (usually) configure the env variables over the server´s UI, without needing to create a new image. 
 
 
 ## THE LESSON OF THE OPEN PORTAL
