@@ -49,6 +49,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/emblems', express.static(path.join(BASE_PATH, 'logo_art')));
 
+// Health endpoint for monitoring uptime
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'lancer-job-board-secret-key-change-in-production',
