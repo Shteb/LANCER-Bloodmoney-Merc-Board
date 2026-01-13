@@ -3,7 +3,6 @@ const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
 const helpers = require('./helpers');
-const healthRoutes = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,9 +48,6 @@ app.use(express.json());
 // Serve static files (no session needed)
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/emblems', express.static(path.join(BASE_PATH, 'logo_art')));
-
-// Health check route (no authentication needed)
-app.use(healthRoutes);
 
 // Session configuration
 app.use(session({
