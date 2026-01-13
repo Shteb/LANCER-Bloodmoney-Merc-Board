@@ -3,3 +3,4 @@ services:
     name: blood-money-board-app
     env: docker
     dockerfilePath: ./Dockerfile
+    plan: free
