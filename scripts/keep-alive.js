@@ -2,10 +2,11 @@ const http = require('http');
 
 const PORT = process.env.PORT || 3000;
 const PING_INTERVAL = 14 * 60 * 1000; // 14 minutes
+const INITIAL_DELAY = 30 * 1000; // Wait 30 seconds for server to start
 
 function ping() {
   const options = {
-    hostname: 'localhost',
+    hostname: '127.0.0.1',
     port: PORT,
     path: '/health',
     method: 'GET',
