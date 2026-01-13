@@ -5,33 +5,26 @@
 
 Bound the held image in the Docker Protocol to achieve shape. Beware: it does not run- it awakens. It does not crash- it ascends. 
 
-1. **you can setup an `.env` file** with your configuration:
-   ```env
-   PORT=3000
-   CLIENT_KEY=your_client_key
-   ADMIN_KEY=your_admin_key
-   ```
-   this is optional, you can override variables in the docker manifest too. 
-
-2. **Build and start the container**:
+1. **Build and start the container**:
    ```bash
    docker compose up -d
    ```
 
-3. **Access the application**:
-   - Open your browser to `http://localhost:3000` or the the port you configured
-   - Use the credentials from your `.env` file to log in
-   - You can use Docker Desktop port-forwarding instead of ngrok or other command-line based solutions. 
-
-4. **Or use an existing image**:
+2. **Or use an existing image**:
    for instance in a cloud server like Render or Google Cloud
      ```bash
      docker compose -f docker-compose.pull.yml up -d
      ```
    and access the image over your server´s provided url. You can then (usually) configure the env variables over the server´s UI, without needing to create a new image. 
 
+
 ## THE LESSON OF THE OPEN PORTAL
 The spirit demands tribute. It hungers for data, for queries, for the breath of the outside world. Open the gates, or it will open them for you."
+
+**Access the app**:
+   - Open your browser to `http://localhost:3000` or the the port you configured
+   - Login as TARASQUE and set a new admin password in settings
+   - You can now use Docker Desktop port-forwarding instead of ngrok or other command-line based solutions. 
 
 ### Environment Variables
 
