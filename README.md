@@ -5,7 +5,7 @@ A terminal-styled web application for managing LANCER RPG missions and your merc
 
 ## How to Run Locally
 ### __The Normal Way__
-1. Go to releases on the right and download the latest `Lancer_Bloodmoney_Companion_X.X.X.zip`.
+1. Go to [releases](https://github.com/Shteb/LANCER-Bloodmoney-Merc-Board/releases) on the right and download the latest `Lancer_Bloodmoney_Companion_X.X.X.zip`.
 
 2. Unzip into an empty folder.
 
