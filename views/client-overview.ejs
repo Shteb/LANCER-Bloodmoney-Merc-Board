@@ -36,10 +36,10 @@
     <div class="overview-grid">
       <div class="left-column">
         <div class="balance-section">
-          <h2>> MANNA_BALANCE:</h2>
+          <h2>> ACTIVE_BALANCE:</h2>
           <div class="balance-display" id="balance-display">
             <%= totalBalance %>
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
         
@@ -52,7 +52,7 @@
                   <div class="transaction-main">
                     <span class="transaction-amount <%= transaction.totalAmount >= 0 ? 'positive' : 'negative' %>">
                       <%= transaction.totalAmount >= 0 ? '+' : '' %><%= transaction.totalAmount %>
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </span>
                     <span class="transaction-description"><%= transaction.description %></span>
                   </div>
@@ -65,13 +65,13 @@
                     </span>
                     <span class="transaction-balance">
                       Balance: <%= transaction.cumulativeBalance %>
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </span>
                   </div>
                 </div>
               <% }); %>
             </div>
-            <a href="/client/finances" class="view-more-button">[VIEW_MORE]</a>
+            <a href="/client/finances" class="view-more-button">[FULL_TRANSACTION_HISTORY]</a>
           <% } else { %>
             <h3>> RECENT_TRANSACTIONS:</h3>
             <p>> NO_TRANSACTIONS_RECORDED_</p>
@@ -85,11 +85,11 @@
           <h3>> AVAILABLE_SYSTEMS_</h3>
           <div class="nav-buttons">
             <a href="/client/jobs" class="nav-button">> JOB_BOARD</a>
-            <a href="/client/base" class="nav-button">> BASE_MANAGEMENT</a>
             <a href="/client/factions" class="nav-button">> FACTION_RELATIONS</a>
+            <a href="/client/base" class="nav-button">> BASE_MANAGEMENT</a>
             <a href="/client/pilots" class="nav-button">> PILOT_LIST</a>
-            <a href="/client/procurement" class="nav-button">> SHOP</a>
             <a href="/client/reserves" class="nav-button">> RESERVES</a>
+            <a href="/client/shop" class="nav-button">> SHOP</a>
           </div>
         </div>
       </div>
@@ -97,6 +97,12 @@
   </div>
   
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
     // Handle manna and pilot updates from SSE
@@ -107,7 +113,7 @@
         if (balanceDisplay) {
           balanceDisplay.innerHTML = `
             ${data.balances.activeBalance}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           `;
         }
       }
@@ -120,7 +126,7 @@
         if (balanceDisplay) {
           balanceDisplay.innerHTML = `
             ${data.balances.activeBalance}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           `;
         }
       }

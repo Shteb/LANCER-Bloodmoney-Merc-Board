@@ -63,7 +63,7 @@
     }
     
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 22px;
     }
     
     .form-group label {
@@ -335,8 +335,9 @@
     }
     
     .emblem-option img {
-      max-width: 100%;
-      max-height: 60px;
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
       display: block;
     }
     
@@ -361,6 +362,9 @@
       transition: opacity 0.3s ease-in-out;
       z-index: 2000;
       pointer-events: none;
+      white-space: nowrap;
+      min-width: 200px;
+      display: block;
     }
     
     .notification-footer.show {
@@ -368,13 +372,14 @@
     }
     
     .emblem-display {
-      max-width: 150px;
-      max-height: 150px;
+      width: 150px;
+      height: 150px;
       margin-top: 10px;
       border: 1px solid #ddd;
       padding: 10px;
       background-color: white;
       border-radius: 3px;
+      object-fit: contain;
     }
 
     .form-inline {
@@ -765,18 +770,24 @@
   <!-- Tab Navigation -->
   <div class="tab-navigation">
     <button class="tab-button active" onclick="switchTab('overview', event)">Overview Config</button>
+    <button class="tab-button" onclick="switchTab('transactions', event)">Transaction Management</button>
     <button class="tab-button" onclick="switchTab('jobs', event)">Job Board Config</button>
+    <button class="tab-button" onclick="switchTab('vote', event)">Vote Config</button>
+    <button class="tab-button" onclick="switchTab('factions', event)">Faction Config</button>
     <button class="tab-button" onclick="switchTab('base', event)">Base Config</button>
     <button class="tab-button" onclick="switchTab('pilots', event)">Pilot Config</button>
-    <button class="tab-button" onclick="switchTab('factions', event)">Faction Config</button>
-    <button class="tab-button" onclick="switchTab('store', event)">Store Config</button>
+    <button class="tab-button" onclick="switchTab('store', event)">Shop & Reserves Config</button>
   </div>
 
   <!-- Overview Tab -->
   <div id="overview-tab" class="tab-content active">
     <div class="settings-section">
-      <h2>Global Settings</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0;">Global Settings</h2>
+        <button type="submit" form="settingsForm" class="btn btn-primary">Save Settings</button>
+      </div>
       <form id="settingsForm">
+        <input type="hidden" id="settingsCurrencyIcon" name="currencyIcon" value="<%= settings.currencyIcon || 'manna_symbol.svg' %>">
         <div class="form-group">
           <label for="settingsPortalHeading">Portal Heading (Landing & Client View)</label>
           <input type="text" id="settingsPortalHeading" name="portalHeading" value="<%= settings.portalHeading %>" maxlength="100" required>
@@ -830,26 +841,41 @@
         </div>
         
         <div class="form-group">
-          <label for="settingsOpenTable" style="display: inline-block; font-weight: normal; margin-bottom: 0;">
+          <label for="settingsOpenTable" style="display: inline-block; font-weight: bold; margin-bottom: 0;">
             Open Table (Show pilot personal operation progress)
           </label>
           <input type="checkbox" id="settingsOpenTable" name="openTable" value="true" <%= settings.openTable ? 'checked' : '' %> style="width: auto; margin-left: 10px; vertical-align: middle;">
         </div>
         
+        <div class="form-group">
+          <label>Currency Icon</label>
+          <button type="button" class="btn" onclick="openCurrencyIconModal()" style="margin-top: 5px;">
+            Change Currency Icon
+          </button>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+            <span style="color: #b0b0b0;">Current:</span>
+            <img id="currentCurrencyIconPreview" src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" style="width: 40px; height: 40px; border: 1px solid #444; padding: 5px; border-radius: 3px; background: white;">
+            <span style="color: #e0e0e0;" id="currentCurrencyIconName"><%= settings.currencyIcon || 'manna_symbol.svg' %></span>
+          </div>
+        </div>
+        
         <button type="submit" class="btn btn-primary">Save Settings</button>
       </form>
     </div>
+  </div>
 
+  <!-- Transaction Management Tab -->
+  <div id="transactions-tab" class="tab-content">
     <div class="settings-section">
       <h2>Manna Balance Management</h2>
       <div class="manna-display">
         <div style="margin-bottom: 10px;">
           <strong>Active Balance:</strong> <span id="activeBalance" style="font-size: 1.3em;"><%= balances.activeBalance %></span>
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
         </div>
         <div style="font-size: 0.9em; color: #b0b0b0;">
           Total Balance: <span id="totalBalance"><%= balances.totalBalance %></span>
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon" style="width: 20px; height: 20px;">
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon" style="width: 20px; height: 20px;">
         </div>
       </div>
       
@@ -927,7 +953,7 @@
                 <span style="color: <%= totalAmount >= 0 ? '#66BB6A' : '#f44336' %>">
                   <%= totalAmount >= 0 ? '+' : '' %><%= totalAmount %>
                 </span>
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                 <span style="color: #888; font-size: 0.9em; margin-left: 5px;">
                   (<%= activePilotCount %> active pilot<%= activePilotCount !== 1 ? 's' : '' %>)
                 </span>
@@ -937,7 +963,7 @@
                 <span style="color: <%= transaction.amount >= 0 ? '#66BB6A' : '#f44336' %>">
                   <%= transaction.amount >= 0 ? '+' : '' %><%= transaction.amount %>
                 </span>
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               </div>
               <div class="transaction-item-field">
                 <strong>Description:</strong> <%= transaction.description %>
@@ -1022,7 +1048,7 @@
       <div class="form-group">
         <label for="jobCurrencyPay" class="currency-label">
           Currency Pay (e.g., 100m)
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
         </label>
         <input type="text" id="jobCurrencyPay" name="currencyPay" required>
       </div>
@@ -1075,13 +1101,44 @@
   </div>
 
   <div class="jobs-list">
-    <h2>Existing Jobs</h2>
+    <h2>Job History</h2>
     
     <!-- Progress All Jobs Button -->
     <div style="margin-bottom: 20px;">
       <button class="btn btn-neutral" onclick="showProgressAllJobsModal()" style="font-size: 14px; padding: 10px 20px;">
         Progress all Jobs
       </button>
+      
+      <% 
+        const hasOngoingVotingPeriod = votingPeriods.find(p => p.state === 'Ongoing');
+      %>
+      <% if (hasOngoingVotingPeriod) { %>
+        <div style="margin-top: 10px; padding: 10px; background-color: #3a2a1a; border: 1px solid #FFA726; border-radius: 3px;">
+          <strong style="color: #FFA726;">⚠ Warning:</strong>
+          <span style="color: #e0e0e0;">
+            Moving any Active Job out of the Active state will automatically archive the current Voting Period.
+          </span>
+        </div>
+      <% } %>
+    </div>
+    
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px;">
+      <div class="form-group">
+        <label for="admin-job-search-input">Search Jobs</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="admin-job-search-input" placeholder="Filter jobs..." style="flex: 1; max-width: 400px;">
+          <select id="admin-job-search-field" style="width: 100px;">
+            <option value="all">All</option>
+            <option value="name">Name</option>
+            <option value="faction">Faction</option>
+            <option value="description">Description</option>
+            <option value="pilot">Pilot</option>
+          </select>
+          <button onclick="searchAdminJobs()" class="btn btn-primary">Search</button>
+          <button onclick="clearAdminJobSearch()" class="btn btn-neutral">Clear</button>
+        </div>
+      </div>
     </div>
     
     <!-- Filter Pills -->
@@ -1109,7 +1166,7 @@
           <div class="job-item-field"><strong>Client Brief:</strong> <%= job.clientBrief %></div>
           <div class="job-item-field"><strong>Payment:</strong>
             <%= job.currencyPay %>
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
           <% if (job.additionalPay) { %>
             <div class="job-item-field"><strong>Additional Pay:</strong> <%= job.additionalPay %></div>
@@ -1197,7 +1254,7 @@
         <div class="form-group">
           <label for="editJobCurrencyPay" class="currency-label">
             Currency Pay (e.g., 100m)
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </label>
           <input type="text" id="editJobCurrencyPay" name="currencyPay" required>
         </div>
@@ -1278,7 +1335,7 @@
                   <div class="upgrade-item">
                     <div class="upgrade-info">
                       <strong><%= upgrade.upgradeName %></strong>
-                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
                     </div>
                     <p class="upgrade-description"><%= upgrade.upgradeDescription %></p>
                     <div class="upgrade-count">
@@ -1318,7 +1375,7 @@
                 <span>Purchased</span>
               </label>
             </div>
-            <div class="facility-price">Price: <%= facility.facilityPrice %><img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></div>
+            <div class="facility-price">Price: <%= facility.facilityPrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
             <p class="facility-description"><%= facility.facilityDescription %></p>
             
             <% if (facility.upgrades && facility.upgrades.length > 0) { %>
@@ -1328,7 +1385,7 @@
                   <div class="upgrade-item">
                     <div class="upgrade-info">
                       <strong><%= upgrade.upgradeName %></strong>
-                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
                     </div>
                     <p class="upgrade-description"><%= upgrade.upgradeDescription %></p>
                     <div class="upgrade-count">
@@ -1459,7 +1516,7 @@
               <div class="job-item-field">
                 <strong>Balance:</strong> 
                 <span class="pilot-balance" data-pilot-id="<%= pilot.id %>"><%= pilot.balance || 0 %></span>
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               </div>
               <% if (pilot.notes) { %>
                 <div class="job-item-field"><strong>Notes:</strong><br><pre style="margin: 5px 0; font-family: inherit; white-space: pre-wrap;"><%= pilot.notes %></pre></div>
@@ -1778,7 +1835,7 @@
         <div class="job-item-field">
           <strong>Current Balance:</strong> 
           <span id="pilotBalanceHistoryTotal">0</span>
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
         </div>
       </div>
       <p style="color: #b0b0b0; margin-bottom: 15px;">Uncheck transactions to disassociate them from this pilot. The transaction will remain in the system.</p>
@@ -1996,7 +2053,7 @@
                 <span><%= reserve.name %></span>
               </h3>
               <div class="job-item-field"><strong>Rank:</strong> R<%= reserve.rank %></div>
-              <div class="job-item-field"><strong>Price:</strong> <%= reserve.price %> <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></div>
+              <div class="job-item-field"><strong>Price:</strong> <%= reserve.price %> <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
               <% if (reserve.description) { %>
                 <div class="job-item-field"><strong>Description:</strong><br><%= reserve.description %></div>
               <% } %>
@@ -2057,7 +2114,7 @@
                onclick="selectAvailableReserve(this, '<%= reserve.id %>')">
             <h3 style="color: #e0e0e0; margin-bottom: 10px;"><%= reserve.name %></h3>
             <div class="job-item-field"><strong>Rank:</strong> R<%= reserve.rank %></div>
-            <div class="job-item-field"><strong>Price:</strong> <%= reserve.price %> <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></div>
+            <div class="job-item-field"><strong>Price:</strong> <%= reserve.price %> <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
             <% if (reserve.description) { %>
               <div class="job-item-field"><strong>Description:</strong><br><%= reserve.description %></div>
             <% } %>
@@ -2097,7 +2154,7 @@
         
         <div class="form-group">
           <label for="createReserveDescription">Description</label>
-          <textarea id="createReserveDescription" name="description" rows="4"></textarea>
+          <textarea id="createReserveDescription" name="description" rows="4" placeholder="Text before your first [enter] input will be bolded."></textarea>
         </div>
         
         <button type="submit" class="btn btn-primary">Create Reserve</button>
@@ -2144,6 +2201,255 @@
     </div>
   </div>
 
+  <!-- Currency Icon Selection Modal -->
+  <div id="currencyIconModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Select Currency Icon</h2>
+        <span class="close" onclick="closeCurrencyIconModal()">&times;</span>
+      </div>
+      <div style="padding: 20px;">
+        <p style="color: #b0b0b0; margin-bottom: 15px;">
+          Select an SVG icon from the emblem library to use as the currency icon. The selected icon will be used throughout the application.
+        </p>
+        <div class="emblem-grid" id="currencyIconGrid">
+          <% emblems.forEach(emblem => { %>
+            <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+              <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+            </div>
+          <% }); %>
+        </div>
+        <div style="margin-top: 20px; text-align: right;">
+          <button type="button" class="btn btn-secondary" onclick="closeCurrencyIconModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveCurrencyIcon()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vote Config Tab -->
+  <div id="vote-tab" class="tab-content">
+    <div class="settings-section">
+      <h2>Vote Configuration</h2>
+      <p style="color: #b0b0b0; margin-bottom: 20px;">
+        This section allows the initiation of a voting period on the Job Board for Pilots. 
+        The voting period will end when the End Time elapses, or manually by clicking "Conclude Voting".
+      </p>
+      
+      <%
+        // ongoingPeriod is provided by the server
+        // Archive periods are filtered from votingPeriods
+        const archivedPeriods = votingPeriods.filter(p => p.state === 'Archived').reverse();
+      %>
+      
+      <% if (ongoingPeriod) { %>
+        <!-- Current Ongoing Vote Section -->
+        <div style="margin-bottom: 40px;">
+          <h3 style="color: #66BB6A; margin-bottom: 15px;">Current Vote</h3>
+          
+          <div id="votingPeriodTimeDisplay" style="margin-bottom: 15px; padding: 15px; background-color: #1a1a1a; border-radius: 5px; border: 1px solid #444;">
+            <% if (ongoingPeriod.endTime) { %>
+              <div style="color: #e0e0e0; margin-bottom: 8px;">
+                <strong>Time Remaining:</strong> <span id="timeRemaining">Calculating...</span>
+              </div>
+              <div style="color: #b0b0b0;">
+                <strong>End Time:</strong> <span id="endTime"><%= new Date(ongoingPeriod.endTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/,/, ' -') %></span>
+              </div>
+            <% } else { %>
+              <div style="color: #e0e0e0;">
+                <strong>Duration:</strong> Infinite (No end time set)
+              </div>
+            <% } %>
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <button class="btn btn-secondary" id="conclude-vote-btn" onclick="concludeVote()">Conclude Vote</button>
+            <% if (ongoingPeriod.endTime) { %>
+              <button class="btn btn-primary" id="archive-vote-btn" onclick="archiveVote('<%= ongoingPeriod.id %>')" style="display: none;">Archive Voting Results</button>
+            <% } else { %>
+              <button class="btn btn-primary" onclick="archiveVote('<%= ongoingPeriod.id %>')" disabled style="opacity: 0.5; cursor: not-allowed;" title="Cannot archive until voting concludes">Archive Voting Results</button>
+            <% } %>
+            <button class="btn btn-primary" id="modify-vote-btn" onclick="openModifyVoteModal()">Modify Voting Close</button>
+          </div>
+          
+          <!-- Job List for Ongoing Vote -->
+          <div>
+            <h4 style="color: #e0e0e0; margin-bottom: 15px;">Jobs in Current Vote</h4>
+            <% 
+              const ongoingJobVotes = ongoingPeriod.jobVotes || [];
+              if (ongoingJobVotes.length === 0) { 
+            %>
+              <p style="color: #888;">No jobs in this voting period.</p>
+            <% } else {
+                ongoingJobVotes.forEach(jobVote => {
+                  const job = jobs.find(j => j.id === jobVote.jobId);
+                  const voteCount = (jobVote.votes || []).length;
+                  const votingPilots = (jobVote.votes || []).map(pilotId => {
+                    const pilot = pilots.find(p => p.id === pilotId);
+                    return pilot ? pilot.callsign : 'DELETED PILOT';
+                  });
+            %>
+              <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #444; border-radius: 3px; background-color: #1a1a1a;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                  <% if (job && job.emblem) { %>
+                    <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 60px; height: 60px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                  <% } %>
+                  <div style="flex: 1;">
+                    <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job ? job.name : 'JOB DELETED' %></h5>
+                    <% if (job) { %>
+                      <div style="color: #b0b0b0; font-size: 13px;">
+                        <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                        <strong>Rank:</strong> 
+                        <span class="rank-display" style="font-size: 14px;">
+                          <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                          <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                        </span> | 
+                        <strong>Type:</strong> <%= job.jobType %>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+                <div style="color: #e0e0e0; margin-bottom: 5px;">
+                  <strong>Vote Count:</strong> <%= voteCount %>
+                </div>
+                <div style="color: #b0b0b0;">
+                  <strong>Pilots:</strong> <%= votingPilots.length > 0 ? votingPilots.join(', ') : 'None' %>
+                </div>
+              </div>
+            <% 
+                });
+              }
+            %>
+          </div>
+        </div>
+      <% } else { %>
+        <!-- Create New Voting Period Section -->
+        <div style="margin-bottom: 40px;">
+          <h3 style="color: #66BB6A; margin-bottom: 15px;">Start New Voting Period</h3>
+          
+          <form id="newVotingPeriodForm" style="margin-bottom: 20px;">
+            <div class="form-group">
+              <label for="votingEndTime">End Time</label>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="datetime-local" id="votingEndTime" name="endTime" style="flex: 1; color-scheme: dark;">
+                <label style="display: flex; align-items: center; gap: 5px; color: #b0b0b0; cursor: pointer; white-space: nowrap;">
+                  <input type="checkbox" id="infiniteDuration" name="infiniteDuration" onchange="toggleEndTime(this)">
+                  No end time?
+                </label>
+              </div>
+            </div>
+          </form>
+          
+          <div>
+            <h4 style="color: #e0e0e0; margin-bottom: 15px;">Active Jobs</h4>
+            <% 
+              const activeJobs = jobs.filter(j => j.state === 'Active');
+              if (activeJobs.length === 0) {
+            %>
+              <p style="color: #888;">No Active jobs available to include in voting period.</p>
+            <% } else { %>
+              <div style="margin-bottom: 15px;">
+                <% activeJobs.forEach(job => { %>
+                  <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #444; border-radius: 3px; background-color: #1a1a1a;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                      <% if (job.emblem) { %>
+                        <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 50px; height: 50px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                      <% } %>
+                      <div style="flex: 1;">
+                        <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job.name %></h5>
+                        <div style="color: #b0b0b0; font-size: 13px;">
+                          <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                          <strong>Rank:</strong> 
+                          <span class="rank-display" style="font-size: 14px;">
+                            <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                            <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                          </span> | 
+                          <strong>Type:</strong> <%= job.jobType %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+              <button type="submit" form="newVotingPeriodForm" class="btn btn-primary" onclick="startVotingPeriod(event)">Start Voting Period</button>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Vote Archive Section -->
+      <div>
+        <h3 style="color: #e0e0e0; margin-bottom: 15px;">Vote Archive</h3>
+        
+        <% if (archivedPeriods.length === 0) { %>
+          <p style="color: #888;">No archived voting periods.</p>
+        <% } else { %>
+          <% archivedPeriods.forEach((period, periodIndex) => { %>
+            <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #444; border-radius: 5px; background-color: #1a1a1a;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #b0b0b0; margin: 0;">
+                  Archived Vote #<%= archivedPeriods.length - periodIndex %>
+                  <% if (period.endTime) { %>
+                    - Ended: <%= new Date(period.endTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/,/, ' -') %>
+                  <% } else { %>
+                    - No End Time Set
+                  <% } %>
+                </h4>
+                <button class="btn btn-delete btn-sm" onclick="deleteVoteLog('<%= period.id %>')">Delete Vote Log</button>
+              </div>
+              
+              <% 
+                const archivedJobVotes = period.jobVotes || [];
+                if (archivedJobVotes.length === 0) {
+              %>
+                <p style="color: #888;">No jobs in this voting period.</p>
+              <% } else {
+                  archivedJobVotes.forEach(jobVote => {
+                    const job = jobs.find(j => j.id === jobVote.jobId);
+                    const voteCount = (jobVote.votes || []).length;
+                    const votingPilots = (jobVote.votes || []).map(pilotId => {
+                      const pilot = pilots.find(p => p.id === pilotId);
+                      return pilot ? pilot.callsign : 'DELETED PILOT';
+                    });
+              %>
+                <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #333; border-radius: 3px; background-color: #0a0a0a;">
+                  <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px;">
+                    <% if (job && job.emblem) { %>
+                      <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 50px; height: 50px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                    <% } %>
+                    <div style="flex: 1;">
+                      <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job ? job.name : 'JOB DELETED' %></h5>
+                      <% if (job) { %>
+                        <div style="color: #b0b0b0; font-size: 13px;">
+                          <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                          <strong>Rank:</strong> 
+                          <span class="rank-display" style="font-size: 14px;">
+                            <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                            <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                          </span> | 
+                          <strong>Type:</strong> <%= job.jobType %>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div style="color: #e0e0e0; margin-bottom: 5px;">
+                    <strong>Vote Count:</strong> <%= voteCount %>
+                  </div>
+                  <div style="color: #b0b0b0;">
+                    <strong>Pilots:</strong> <%= votingPilots.length > 0 ? votingPilots.join(', ') : 'None' %>
+                  </div>
+                </div>
+              <% 
+                  });
+                }
+              %>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
 <script src="/js/sse-client.js"></script>
 <script>
     // Handle settings update from SSE for admin view
@@ -2153,6 +2459,32 @@
       }
       
       const settings = data.settings;
+      
+      // Update currency icons
+      if (settings.currencyIcon) {
+        const currencyIcons = document.querySelectorAll('.currency-icon');
+        currencyIcons.forEach(icon => {
+          if (icon.tagName === 'IMG') {
+            icon.src = `/emblems/${settings.currencyIcon}?v=${Date.now()}`;
+          }
+        });
+        
+        // Update the preview in the settings form
+        const preview = document.getElementById('currentCurrencyIconPreview');
+        const name = document.getElementById('currentCurrencyIconName');
+        if (preview) {
+          preview.src = `/emblems/${settings.currencyIcon}?v=${Date.now()}`;
+        }
+        if (name) {
+          name.textContent = settings.currencyIcon;
+        }
+        
+        // Update the hidden input
+        const input = document.getElementById('settingsCurrencyIcon');
+        if (input) {
+          input.value = settings.currencyIcon;
+        }
+      }
       
       // Update openTable state and toggle Personal Operation Progress fields
       if (settings.openTable !== undefined) {
@@ -2276,7 +2608,7 @@
                       <span style="color: ${amountColor}">
                         ${amountPrefix}${transaction.amount}
                       </span>
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </div>
                     <div class="transaction-item-field">
                       <strong>Description:</strong> ${transaction.description}
@@ -2299,6 +2631,331 @@
         }
       }
     }
+    
+    // Handle voting periods update from SSE for admin view
+    function handleVotingPeriodsUpdate(data) {
+      // Reload the page to show updated voting data
+      // This ensures vote counts and all voting period data are current
+      location.reload();
+    }
+  </script>
+<script>
+    // ==================== VOTING PERIOD MANAGEMENT ====================
+    
+    // Serialize ongoing period once for reuse
+    const ongoingPeriod = <%- JSON.stringify(ongoingPeriod) %>;
+    
+    // Toggle end time input based on infinite duration checkbox
+    function toggleEndTime(checkbox) {
+      const endTimeInput = document.getElementById('votingEndTime');
+      endTimeInput.disabled = checkbox.checked;
+      if (checkbox.checked) {
+        endTimeInput.value = '';
+      }
+    }
+    
+    // Start a new voting period
+    async function startVotingPeriod(event) {
+      event.preventDefault();
+      
+      const infiniteDuration = document.getElementById('infiniteDuration').checked;
+      const endTimeInput = document.getElementById('votingEndTime').value;
+      
+      // Validate end time if not infinite
+      if (!infiniteDuration && !endTimeInput) {
+        alert('Please select an end time or check "No end time?"');
+        return;
+      }
+      
+      // Get all active job IDs
+      const activeJobs = <%- JSON.stringify(activeJobIds) %>;
+      
+      if (activeJobs.length === 0) {
+        alert('No Active jobs available to start a voting period');
+        return;
+      }
+      
+      // Create job votes structure
+      const jobVotes = activeJobs.map(jobId => ({
+        jobId: jobId,
+        votes: []
+      }));
+      
+      // Create voting period object
+      const votingPeriod = {
+        state: 'Ongoing',
+        jobVotes: jobVotes,
+        endTime: infiniteDuration ? null : new Date(endTimeInput).toISOString()
+      };
+      
+      try {
+        const response = await fetch('/api/voting-periods', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(votingPeriod)
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period started successfully!');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to start voting period');
+        }
+      } catch (error) {
+        console.error('Error starting voting period:', error);
+        alert('Error starting voting period');
+      }
+    }
+    
+    // Conclude vote (set end time to 5 seconds in the past)
+    async function concludeVote() {
+      if (!confirm('Are you sure you want to conclude the voting period?')) {
+        return;
+      }
+      
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      // Set end time to 5 seconds in the past
+      const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${ongoingPeriod.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            endTime: fiveSecondsAgo
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period concluded');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to conclude voting period');
+        }
+      } catch (error) {
+        console.error('Error concluding voting period:', error);
+        alert('Error concluding voting period');
+      }
+    }
+    
+    // Archive voting period
+    async function archiveVote(periodId) {
+      if (!confirm('Are you sure you want to archive this voting period?')) {
+        return;
+      }
+      
+      if (!ongoingPeriod || ongoingPeriod.id !== periodId) {
+        alert('Voting period not found or not ongoing');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${periodId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            state: 'Archived'
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period archived');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to archive voting period');
+        }
+      } catch (error) {
+        console.error('Error archiving voting period:', error);
+        alert('Error archiving voting period');
+      }
+    }
+    
+    // Delete vote log
+    async function deleteVoteLog(periodId) {
+      if (!confirm('Are you sure you want to delete this vote log? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${periodId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          showNotification('Vote log deleted');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to delete vote log');
+        }
+      } catch (error) {
+        console.error('Error deleting vote log:', error);
+        alert('Error deleting vote log');
+      }
+    }
+    
+    // Open modify vote modal
+    // Open modify vote modal
+    function openModifyVoteModal() {
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      const modal = document.getElementById('modify-vote-modal');
+      const endTimeInput = document.getElementById('modify-vote-end-time');
+      const infiniteCheckbox = document.getElementById('modify-vote-infinite-duration');
+      
+      // Set current end time in the input or check infinite
+      if (ongoingPeriod.endTime) {
+        const currentEndTime = new Date(ongoingPeriod.endTime);
+        const year = currentEndTime.getFullYear();
+        const month = String(currentEndTime.getMonth() + 1).padStart(2, '0');
+        const day = String(currentEndTime.getDate()).padStart(2, '0');
+        const hours = String(currentEndTime.getHours()).padStart(2, '0');
+        const minutes = String(currentEndTime.getMinutes()).padStart(2, '0');
+        
+        endTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        endTimeInput.disabled = false;
+        infiniteCheckbox.checked = false;
+      } else {
+        endTimeInput.value = '';
+        endTimeInput.disabled = true;
+        infiniteCheckbox.checked = true;
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    // Toggle end time input in modify modal
+    function toggleModifyEndTime(checkbox) {
+      const endTimeInput = document.getElementById('modify-vote-end-time');
+      endTimeInput.disabled = checkbox.checked;
+      if (checkbox.checked) {
+        endTimeInput.value = '';
+      }
+    }
+    
+    // Close modify vote modal
+    function closeModifyVoteModal() {
+      const modal = document.getElementById('modify-vote-modal');
+      modal.style.display = 'none';
+    }
+    
+    // Modify voting close time
+    async function modifyVotingClose() {
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      const endTimeInput = document.getElementById('modify-vote-end-time').value;
+      const infiniteCheckbox = document.getElementById('modify-vote-infinite-duration').checked;
+      
+      let newEndTime = null;
+      
+      if (!infiniteCheckbox) {
+        if (!endTimeInput) {
+          alert('Please select an end time or check "No end time?"');
+          return;
+        }
+        newEndTime = new Date(endTimeInput).toISOString();
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${ongoingPeriod.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            endTime: newEndTime
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting close time updated');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update voting close time');
+        }
+      } catch (error) {
+        console.error('Error updating voting close time:', error);
+        alert('Error updating voting close time');
+      }
+    }
+    
+    // Update time remaining display (for ongoing vote)
+    function updateTimeRemaining() {
+      const timeRemainingEl = document.getElementById('timeRemaining');
+      const endTimeEl = document.getElementById('endTime');
+      const archiveBtn = document.getElementById('archive-vote-btn');
+      const concludeBtn = document.getElementById('conclude-vote-btn');
+      const modifyBtn = document.getElementById('modify-vote-btn');
+      
+      if (!timeRemainingEl || !endTimeEl) {
+        return;
+      }
+      
+      if (!ongoingPeriod || !ongoingPeriod.endTime) {
+        return;
+      }
+      
+      const endTime = new Date(ongoingPeriod.endTime);
+      const now = new Date();
+      const diff = endTime - now;
+      
+      if (diff <= 0) {
+        timeRemainingEl.textContent = 'Voting Concluded';
+        timeRemainingEl.style.color = '#f44336';
+        // Show archive button and hide conclude button when voting has concluded
+        // Keep modify button visible to allow extending voting period
+        if (archiveBtn) {
+          archiveBtn.style.display = 'inline-block';
+        }
+        if (concludeBtn) {
+          concludeBtn.style.display = 'none';
+        }
+        // Modify button stays visible
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(minutes).padStart(2, '0');
+      const secondsStr = String(seconds).padStart(2, '0');
+      
+      timeRemainingEl.textContent = `${hoursStr}:${minutesStr}:${secondsStr} (${hours} hours)`;
+    }
+    
+    // Initialize time remaining update on page load (if on vote tab with ongoing period)
+    document.addEventListener('DOMContentLoaded', function() {
+      if (ongoingPeriod && ongoingPeriod.endTime) {
+        // Update immediately
+        updateTimeRemaining();
+        
+        // Update every second
+        setInterval(updateTimeRemaining, 1000);
+      }
+    });
+    
   </script>
 <script>
     // Tab switching
@@ -2624,7 +3281,7 @@
                 optionDiv.className = 'minor-facility-option';
                 optionDiv.innerHTML = `
                   <h4>${option.minorFacilityName}</h4>
-                  <div class="facility-price">Price: ${option.minorFacilityPrice}<img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></div>
+                  <div class="facility-price">Price: ${option.minorFacilityPrice}<img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
                   <p>${option.minorFacilityDescription}</p>
                 `;
                 optionDiv.onclick = () => assignMinorFacility(slotNumber, option);
@@ -2776,7 +3433,15 @@
         });
         
         if (response.ok) {
-          showNotification('Settings saved successfully!');
+          // Visual feedback on button
+          const btn = document.querySelector('button[type="submit"]');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Saved!';
+          btn.style.backgroundColor = '#28a745';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.backgroundColor = '';
+          }, 2000);
         } else {
           const errorData = await response.json();
           alert(errorData.message || 'Failed to save settings');
@@ -2814,6 +3479,49 @@
     setupEmblemGrid('editEmblemGrid', 'editJobEmblem');
     setupEmblemGrid('factionEmblemGrid', 'factionEmblem');
     setupEmblemGrid('editFactionEmblemGrid', 'editFactionEmblem');
+    setupEmblemGrid('currencyIconGrid', 'settingsCurrencyIcon');
+    
+    // Currency Icon Modal Functions
+    function openCurrencyIconModal() {
+      const modal = document.getElementById('currencyIconModal');
+      const grid = document.getElementById('currencyIconGrid');
+      const currentIcon = document.getElementById('settingsCurrencyIcon').value;
+      
+      // Select the current icon in the grid
+      grid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+      const currentOption = Array.from(grid.querySelectorAll('.emblem-option'))
+        .find(opt => opt.getAttribute('data-emblem') === currentIcon);
+      if (currentOption) {
+        currentOption.classList.add('selected');
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    function closeCurrencyIconModal() {
+      const modal = document.getElementById('currencyIconModal');
+      modal.style.display = 'none';
+    }
+    
+    async function saveCurrencyIcon() {
+      const selectedIcon = document.getElementById('settingsCurrencyIcon').value;
+      
+      if (!selectedIcon) {
+        alert('Please select a currency icon');
+        return;
+      }
+      
+      // Update the preview in the settings form
+      const preview = document.getElementById('currentCurrencyIconPreview');
+      const name = document.getElementById('currentCurrencyIconName');
+      preview.src = `/emblems/${selectedIcon}?v=${Date.now()}`;
+      name.textContent = selectedIcon;
+      
+      // Close the modal
+      closeCurrencyIconModal();
+      
+      showNotification('Currency icon updated in form. Click "Save Settings" to apply.');
+    }
     
     // Flag to prevent auto-selection during programmatic job edit form population
     let isPopulatingJobEditForm = false;
@@ -2870,13 +3578,22 @@
     // Show notification
     function showNotification(message) {
       const notification = document.getElementById('notificationFooter');
-      notification.textContent = message;
-      notification.classList.add('show');
       
       // Clear any existing timeout to prevent race conditions
       if (notificationTimeoutId) {
         clearTimeout(notificationTimeoutId);
       }
+      
+      // Remove the class first to reset the transition
+      notification.classList.remove('show');
+      notification.textContent = message;
+      
+      // Force a reflow to ensure the transition works
+      void notification.offsetWidth;
+      
+      // Add the class to trigger the transition
+      notification.classList.add('show');
+      
       notificationTimeoutId = setTimeout(() => {
         notification.classList.remove('show');
         notificationTimeoutId = null;
@@ -2939,9 +3656,15 @@
         const emblem = data.emblem;
         const addGrid = document.getElementById('emblemGrid');
         const editGrid = document.getElementById('editEmblemGrid');
+        const currencyGrid = document.getElementById('currencyIconGrid');
+        const factionGrid = document.getElementById('factionEmblemGrid');
+        const editFactionGrid = document.getElementById('editFactionEmblemGrid');
 
         const addOption = upsertEmblemOption(addGrid, emblem);
         upsertEmblemOption(editGrid, emblem);
+        upsertEmblemOption(currencyGrid, emblem);
+        upsertEmblemOption(factionGrid, emblem);
+        upsertEmblemOption(editFactionGrid, emblem);
 
         addGrid.querySelectorAll('.emblem-option').forEach(o => o.classList.remove('selected'));
         addOption.classList.add('selected');
@@ -3140,6 +3863,92 @@
         }
       });
     }
+
+    // Admin job search functionality
+    let adminJobSearchTerm = '';
+    let adminJobSearchField = 'all';
+    let adminCurrentState = 'all';
+
+    // Search admin jobs
+    function searchAdminJobs() {
+      const searchInput = document.getElementById('admin-job-search-input');
+      const searchFieldSelect = document.getElementById('admin-job-search-field');
+      
+      adminJobSearchTerm = searchInput.value.toLowerCase().trim();
+      adminJobSearchField = searchFieldSelect.value;
+      
+      applyAdminFilters();
+    }
+    
+    // Clear admin job search
+    function clearAdminJobSearch() {
+      const searchInput = document.getElementById('admin-job-search-input');
+      const searchFieldSelect = document.getElementById('admin-job-search-field');
+      
+      searchInput.value = '';
+      searchFieldSelect.value = 'all';
+      adminJobSearchTerm = '';
+      adminJobSearchField = 'all';
+      
+      applyAdminFilters();
+    }
+    
+    // Apply both state filter and search filter
+    function applyAdminFilters() {
+      const jobItems = document.querySelectorAll('.job-item');
+      
+      jobItems.forEach(item => {
+        const itemState = item.getAttribute('data-state');
+        const stateMatch = adminCurrentState === 'all' || itemState === adminCurrentState;
+        
+        let searchMatch = true;
+        if (adminJobSearchTerm) {
+          // Get all text content from the job item
+          const allText = item.textContent.toLowerCase();
+          const jobTitle = item.querySelector('h3').textContent.toLowerCase();
+          
+          if (adminJobSearchField === 'all') {
+            searchMatch = allText.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'name') {
+            searchMatch = jobTitle.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'faction') {
+            if (adminJobSearchTerm === 'none') {
+              searchMatch = allText.includes('field_null');
+            } else {
+              searchMatch = allText.includes(adminJobSearchTerm);
+            }
+          } else if (adminJobSearchField === 'description') {
+            searchMatch = allText.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'pilot') {
+            // For pilot search - would need additional data structure
+            searchMatch = allText.includes(adminJobSearchTerm);
+          }
+        }
+        
+        if (stateMatch && searchMatch) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+    
+    // Override filterJobs to work with search
+    filterJobs = function(state) {
+      adminCurrentState = state;
+      const filterPills = document.querySelectorAll('.filter-pill');
+      
+      // Update active pill
+      filterPills.forEach(pill => {
+        if (pill.getAttribute('data-state') === state) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      
+      applyAdminFilters();
+    };
 
     // Delete selected emblem
     async function deleteSelectedEmblem() {
@@ -3798,12 +4607,12 @@
                     <div style="color: #b0b0b0; margin-bottom: 5px;">
                       <strong>Amount:</strong> 
                       <span style="color: ${amountColor}">${amountSign}${transaction.amount}</span>
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </div>
                     <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>Description:</strong> ${transaction.description}</div>
                     <div style="color: #b0b0b0;">
                       <strong>Balance After:</strong> ${transaction.pilotBalance}
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </div>
                   </div>
                 </label>
@@ -3939,7 +4748,7 @@
             priceDiv.appendChild(priceStrong);
             priceDiv.appendChild(document.createTextNode(' ' + reserve.price + ' '));
             const priceImg = document.createElement('img');
-            priceImg.src = '/css/images/manna_symbol.svg';
+            priceImg.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
             priceImg.alt = 'Currency Icon';
             priceImg.className = 'currency-icon';
             priceDiv.appendChild(priceImg);
@@ -4170,7 +4979,7 @@
             priceDiv.appendChild(priceStrong);
             priceDiv.appendChild(document.createTextNode(' ' + reserve.price + ' '));
             const priceImg = document.createElement('img');
-            priceImg.src = '/css/images/manna_symbol.svg';
+            priceImg.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
             priceImg.alt = 'Currency Icon';
             priceImg.className = 'currency-icon';
             priceDiv.appendChild(priceImg);
@@ -5018,7 +5827,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       // Get tab from URL hash (e.g., #jobs -> 'jobs')
       const hash = window.location.hash.substring(1);
-      const validTabs = ['overview', 'jobs', 'base', 'pilots', 'factions', 'store'];
+      const validTabs = ['overview', 'transactions', 'jobs', 'base', 'pilots', 'factions', 'store', 'vote'];
       
       if (hash && validTabs.includes(hash)) {
         // Find the button for this tab by matching the tab name in onclick attribute using a direct selector
@@ -5063,4 +5872,29 @@
         }
       }
     });
-  </script></body></html>
+  </script>
+  
+  <!-- Modify Voting Close Modal -->
+  <div id="modify-vote-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Modify Voting Close Time</h2>
+        <span class="close" onclick="closeModifyVoteModal()">&times;</span>
+      </div>
+      <div class="form-group">
+        <label for="modify-vote-end-time">New End Time</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="datetime-local" id="modify-vote-end-time" style="flex: 1; color-scheme: dark;">
+          <label style="display: flex; align-items: center; gap: 5px; color: #b0b0b0; cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="modify-vote-infinite-duration" onchange="toggleModifyEndTime(this)">
+            No end time?
+          </label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" onclick="modifyVotingClose()">Update End Time</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModifyVoteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</body></html>

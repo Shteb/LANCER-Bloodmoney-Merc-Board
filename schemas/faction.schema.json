@@ -2,17 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lancer-job-board.local/schemas/faction.schema.json",
   "title": "Faction",
-  "description": "A faction in the LANCER Bloodmoney Merc Board system",
+  "description": "A faction in the LANCER RPG Job Board system",
   "type": "object",
-  "required": [
-    "id",
-    "title",
-    "emblem",
-    "brief",
-    "standing",
-    "jobsCompletedOffset",
-    "jobsFailedOffset"
-  ],
+  "required": ["id", "title", "emblem", "brief", "standing", "jobsCompletedOffset", "jobsFailedOffset"],
   "properties": {
     "id": {
       "type": "string",

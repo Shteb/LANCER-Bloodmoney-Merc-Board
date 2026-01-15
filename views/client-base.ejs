@@ -78,7 +78,7 @@
             <h4>> TRANSACTION_PER_PILOT:</h4>
             <div class="transaction-amount" id="facility-transaction-amount">
               <span id="facility-amount-per-pilot">0</span>
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             </div>
             <div class="warning-message" id="facility-warning-message" style="display: none;"></div>
           </div>
@@ -123,7 +123,7 @@
             <h4>> TRANSACTION_PER_PILOT:</h4>
             <div class="transaction-amount" id="upgrade-transaction-amount">
               <span id="upgrade-amount-per-pilot">0</span>
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             </div>
             <div class="warning-message" id="upgrade-warning-message" style="display: none;"></div>
           </div>
@@ -183,7 +183,7 @@
             <h4>> TRANSACTION_PER_PILOT:</h4>
             <div class="transaction-amount" id="minor-transaction-amount">
               <span id="minor-amount-per-pilot">0</span>
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             </div>
             <div class="warning-message" id="minor-warning-message" style="display: none;"></div>
           </div>
@@ -225,6 +225,12 @@
   </div>
   
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
     // Store current state
@@ -389,7 +395,7 @@
                   <div class="upgrade-footer">
                     ${!isMaxed ? `<div class="upgrade-price">
                       ${modifiedPrice}
-                      <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                     </div>` : ''}
                     <div class="upgrade-actions">
                       ${canPurchase ? 
@@ -412,7 +418,7 @@
           <div class="facility-price">
             <span class="price-label">PRICE: </span>
             ${modifiedPrice}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             <button class="purchase-facility-btn" data-facility-index="${index}">[PURCHASE]</button>
           </div>
         `;
@@ -458,7 +464,7 @@
             <div class="facility-price">
               <span class="price-label">UNLOCK: </span>
               ${modifiedPrice}
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               <button class="enable-slot-btn" data-slot-number="${slot.slotNumber}">[UNLOCK]</button>
             </div>
           </div>
@@ -570,7 +576,7 @@
           <div class="facility-price">
             <span class="price-label">PRICE: </span>
             ${modifiedPrice}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
       `;
@@ -605,7 +611,7 @@
           <div class="facility-price">
             <span class="price-label">PRICE: </span>
             ${modifiedPrice}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
       `;
@@ -631,7 +637,7 @@
           <div class="facility-price">
             <span class="price-label">PRICE: </span>
             ${modifiedPrice}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
       `;
@@ -671,7 +677,7 @@
               <div class="option-description">${escapeHtml(option.minorFacilityDescription)}</div>
               <div class="option-price">
                 ${modifiedPrice}
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               </div>
             </div>
           `;
@@ -716,7 +722,7 @@
           <div class="facility-price">
             <span class="price-label">PRICE: </span>
             ${modifiedPrice}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </div>
         </div>
       `;
@@ -767,7 +773,7 @@
       const balance = pilot.balance !== undefined ? pilot.balance : 0;
       pilotBalance.textContent = `${balance} `;
       const currencyIcon = document.createElement('img');
-      currencyIcon.src = '/css/images/manna_symbol.svg';
+      currencyIcon.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
       currencyIcon.alt = 'Currency Icon';
       currencyIcon.className = 'currency-icon';
       pilotBalance.appendChild(currencyIcon);

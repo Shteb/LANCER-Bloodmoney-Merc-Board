@@ -1,6 +1,6 @@
-# LANCER Bloodmoney Merc Board - Data Schemas
+# LANCER RPG Job Board - Data Schemas
 
-This directory contains JSON Schema definitions for all data structures used in the LANCER Bloodmoney Merc Board application.
+This directory contains JSON Schema definitions for all data structures used in the LANCER RPG Job Board application.
 
 ## Schema Files
 
@@ -70,6 +70,16 @@ This directory contains JSON Schema definitions for all data structures used in 
     - Defines the store configuration including current stock and resupply settings
     - currentStock: array of Reserve UUIDs available for purchase
     - resupplySettings: controls automatic store refresh behavior
+
+15. **voting-period.schema.json** - Voting period schema
+    - Defines the structure for a voting period
+    - Includes state (Ongoing/Archived), job votes, and end time
+    - Only one voting period may be Ongoing at a time
+    - Each pilot may only vote for one job per voting period
+
+16. **voting-periods.schema.json** - Voting periods container schema
+    - Container for all voting periods (Ongoing and historical/Archived)
+    - References voting-period.schema.json for array items
 
 ## Schema Validation
 
@@ -209,6 +219,8 @@ The schemas are interconnected in the following ways:
 - **Pilots → Transactions**: Pilot's `personalTransactions` array contains Transaction `id` values
 - **Pilots → Reserves**: Pilot's `reserves` array contains objects with `reserveId` (Reserve `id`) and `deploymentStatus` enum
 - **Store Config → Reserves**: Store Config's `currentStock` array contains Reserve `id` values
+- **Voting Periods → Jobs**: Voting Period's `jobVotes` array contains objects with `jobId` (Job `id`) references
+- **Voting Periods → Pilots**: Voting Period's `jobVotes.votes` arrays contain Pilot `id` values
 
 Note: These UUID-based relationships are validated in code (see `helpers.js`) but not enforced by JSON Schema's `$ref` mechanism due to the cross-file nature of the references.
 

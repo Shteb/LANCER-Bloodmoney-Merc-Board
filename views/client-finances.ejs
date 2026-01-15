@@ -35,10 +35,10 @@
   <div class="content">
     <div class="finances-container">
       <div class="balance-overview">
-        <h2>> CURRENT_MANNA_BALANCE:</h2>
+        <h2>> CURRENT_BALANCE:</h2>
         <div class="balance-display" id="balance-display">
           <%= totalBalance %>
-          <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
         </div>
       </div>
 
@@ -60,7 +60,7 @@
                   </div>
                   <div class="transaction-amount <%= transaction.totalAmount >= 0 ? 'positive' : 'negative' %>">
                     <%= transaction.totalAmount >= 0 ? '+' : '' %><%= transaction.totalAmount %>
-                    <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                   </div>
                   <div class="transaction-description"><%= transaction.description %></div>
                   <div class="transaction-pilots">
@@ -71,7 +71,7 @@
                   </div>
                   <div class="transaction-balance">
                     Balance: <%= transaction.cumulativeBalance %>
-                    <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                    <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
                   </div>
                 </div>
               <% }); %>
@@ -85,6 +85,12 @@
   </div>
 
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
     // Handle manna and pilot updates from SSE
@@ -95,7 +101,7 @@
         if (balanceDisplay) {
           balanceDisplay.innerHTML = `
             ${data.balances.activeBalance}
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           `;
         }
       }

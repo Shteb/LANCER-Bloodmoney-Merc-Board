@@ -32,6 +32,11 @@
     </div>
   </div>
   
+  <!-- Voting Period Banner -->
+  <div id="voting-period-banner" style="display: none;">
+    <!-- Populated by JavaScript -->
+  </div>
+  
   <div class="jobs-grid" id="jobs-grid">
     <% jobs.forEach(job => { %>
       <div class="job-card" data-job-id="<%= job.id %>">
@@ -70,8 +75,7 @@
         
         <div class="job-field">
           <span class="field-label">PAYMENT:</span>
-          <span class="field-value field-value--payment"><%= job.currencyPay %>
-            <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+          <span class="field-value field-value--payment"><%= job.currencyPay.replace(/m$/i, '') %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
           </span>
         </div>
         
@@ -85,13 +89,211 @@
     <% }); %>
   </div>
   
+  <!-- Global Job History Section -->
+  <div class="job-history-section">
+    <h2 class="job-history-title">> GLOBAL_JOB_HISTORY_</h2>
+    
+    <!-- Search Bar -->
+    <div class="pilot-search-container">
+      <input type="text" id="job-history-search-input" class="pilot-search-input" aria-label="Search job history" placeholder="> FILTER_JOBS_" onkeypress="if(event.key === 'Enter') searchJobHistory()">
+      <select id="job-history-search-field" class="job-history-search-dropdown" aria-label="Select search field">
+        <option value="all">ALL</option>
+        <option value="name">NAME</option>
+        <option value="faction">FACTION</option>
+        <option value="description">DESCRIPTION</option>
+        <option value="pilot">PILOT</option>
+      </select>
+      <button id="job-history-search-button" class="pilot-search-button" onclick="searchJobHistory()">[SEARCH]</button>
+      <button id="job-history-clear-button" class="pilot-clear-button" onclick="clearJobHistorySearch()">[CLEAR]</button>
+    </div>
+    
+    <!-- Filter Pills -->
+    <div class="job-history-filters">
+      <button id="pilot-filter-toggle" class="filter-pill-toggle" onclick="togglePilotFilter()">
+        <span id="pilot-filter-text">[ACTIVE PILOTS]</span>
+      </button>
+      <div class="job-status-filters">
+        <span class="filter-label">JOB STATUS:</span>
+        <button class="filter-pill-status active" data-status="all" onclick="filterByStatus('all')">[ALL]</button>
+        <button class="filter-pill-status" data-status="Active" onclick="filterByStatus('Active')">[ACTIVE]</button>
+        <button class="filter-pill-status" data-status="Complete" onclick="filterByStatus('Complete')">[COMPLETE]</button>
+        <button class="filter-pill-status" data-status="Failed" onclick="filterByStatus('Failed')">[FAILED]</button>
+        <button class="filter-pill-status" data-status="Ignored" onclick="filterByStatus('Ignored')">[IGNORED]</button>
+      </div>
+    </div>
+    
+    <!-- Job History List -->
+    <div id="job-history-list" class="job-list"></div>
+  </div>
+  
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
+    // Store current data
+    let currentAllJobs = [];
+    let currentPilots = [];
+    let currentFactions = [];
+    let currentVotingPeriods = null;
+    let currentOngoingVotingPeriod = null;
+    let currentJobHistorySearchTerm = '';
+    let currentJobHistorySearchField = 'all';
+    let currentPilotFilter = 'active'; // 'active' or 'all'
+    let currentStatusFilter = 'all'; // 'all' or specific status
+    let selectedVotingJobId = null;
+    let selectedVotingPilotId = null;
+    
+    // Fetch initial data - wait for all before rendering
+    Promise.all([
+      fetch('/api/jobs').then(r => r.json()),
+      fetch('/api/pilots').then(r => r.json()),
+      fetch('/api/factions').then(r => r.json()),
+      fetch('/api/voting-periods').then(r => r.json())
+    ]).then(([jobs, pilots, factions, votingPeriodsData]) => {
+      currentAllJobs = jobs;
+      currentPilots = pilots;
+      currentFactions = factions;
+      currentVotingPeriods = votingPeriodsData;
+      
+      updateVotingPeriodState();
+      renderVotingPeriodBanner();
+      renderJobs(jobs);
+      renderJobHistory(applyAllFilters(jobs));
+    });
+    
     // Handle jobs update from SSE
     function handleJobsUpdate(data) {
       if (data && data.jobs) {
+        currentAllJobs = data.jobs;
         renderJobs(data.jobs);
+        renderJobHistory(applyAllFilters(data.jobs));
+      }
+    }
+    
+    // Handle pilots update from SSE
+    function handlePilotsUpdate(data) {
+      if (data && data.pilots) {
+        currentPilots = data.pilots;
+        renderJobs(currentAllJobs);
+        renderJobHistory(applyAllFilters(currentAllJobs));
+      }
+    }
+    
+    // Handle factions update from SSE
+    function handleFactionsUpdate(data) {
+      if (data && data.factions) {
+        currentFactions = data.factions;
+        renderJobHistory(applyAllFilters(currentAllJobs));
+      }
+    }
+    
+    // Handle voting periods update from SSE
+    function handleVotingPeriodsUpdate(data) {
+      if (data && data.periods) {
+        currentVotingPeriods = data;
+        updateVotingPeriodState();
+        renderVotingPeriodBanner();
+        renderJobs(currentAllJobs);
+      }
+    }
+    
+    // Update voting period state variables
+    function updateVotingPeriodState() {
+      if (!currentVotingPeriods || !currentVotingPeriods.periods) {
+        currentOngoingVotingPeriod = null;
+        return;
+      }
+      
+      currentOngoingVotingPeriod = currentVotingPeriods.periods.find(p => p.state === 'Ongoing') || null;
+    }
+    
+    // Check if voting is currently active (ongoing period and not past end time)
+    // Note: This uses client-side time for UI responsiveness, but server validates with server time
+    function isVotingActive() {
+      if (!currentOngoingVotingPeriod) return false;
+      
+      if (currentOngoingVotingPeriod.endTime === null) return true;
+      
+      const now = new Date();
+      const endTime = new Date(currentOngoingVotingPeriod.endTime);
+      return now <= endTime;
+    }
+    
+    // Get vote count for a job
+    function getVoteCount(jobId) {
+      if (!currentOngoingVotingPeriod) return 0;
+      
+      const jobVote = currentOngoingVotingPeriod.jobVotes.find(jv => jv.jobId === jobId);
+      return jobVote ? jobVote.votes.length : 0;
+    }
+    
+    // Render voting period banner
+    function renderVotingPeriodBanner() {
+      const banner = document.getElementById('voting-period-banner');
+      
+      if (!currentOngoingVotingPeriod) {
+        banner.style.display = 'none';
+        return;
+      }
+      
+      banner.style.display = 'block';
+      
+      const now = new Date();
+      const endTime = currentOngoingVotingPeriod.endTime ? new Date(currentOngoingVotingPeriod.endTime) : null;
+      
+      // Helper function to format time
+      const formatTime = (date) => {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `${hours}:${minutes} - ${day}/${month}`;
+      };
+      
+      // Calculate total votes for this voting period
+      const totalVotes = currentOngoingVotingPeriod.jobVotes.reduce((sum, jv) => sum + jv.votes.length, 0);
+      
+      if (!endTime || now <= endTime) {
+        // Voting is active
+        if (endTime) {
+          const diffMs = endTime - now;
+          const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+          const formattedEndTime = formatTime(endTime);
+          
+          // Show minutes if less than 60 minutes, otherwise show hours
+          const timeDisplay = diffMinutes < 60 
+            ? `${diffMinutes} MINUTES` 
+            : `${Math.ceil(diffMinutes / 60)} HOURS`;
+          
+          banner.innerHTML = `
+            <div class="voting-banner-text">
+              <span class="voting-banner-left">> JOB VOTE LIVE - VOTE ENDS IN ${timeDisplay} AT ${formattedEndTime}</span>
+              <span class="voting-banner-right">> VOTES CAST: ${totalVotes}</span>
+            </div>
+          `;
+        } else {
+          banner.innerHTML = `
+            <div class="voting-banner-text">
+              <span class="voting-banner-left">> JOB VOTE LIVE - NO END TIME SET</span>
+              <span class="voting-banner-right">> VOTES CAST: ${totalVotes}</span>
+            </div>
+          `;
+        }
+      } else {
+        // Voting has concluded
+        const formattedEndTime = formatTime(endTime);
+        
+        banner.innerHTML = `
+          <div class="voting-banner-text">
+            <span class="voting-banner-left">> VOTING CONCLUDED AT ${formattedEndTime}</span>
+            <span class="voting-banner-right">> TOTAL VOTES: ${totalVotes}</span>
+          </div>
+        `;
       }
     }
     
@@ -138,8 +340,29 @@
           `;
         }
         
+        // Add votes display if there's an ongoing voting period
+        let votesHtml = '';
+        if (currentOngoingVotingPeriod) {
+          const voteCount = getVoteCount(job.id);
+          let voteIcons = '';
+          for (let i = 0; i < voteCount; i++) {
+            voteIcons += '<img src="/emblems/votemark.svg" alt="Vote" class="vote-icon">';
+          }
+          votesHtml = `
+            <div class="job-field job-votes">
+              <span class="field-label">> VOTES:</span>
+              <span class="field-value">${voteIcons || '-'}</span>
+            </div>
+          `;
+        }
+        
+        // Determine if card should be clickable
+        const votingActive = isVotingActive();
+        const clickableClass = votingActive ? 'job-card-clickable' : '';
+        const clickHandler = votingActive ? `onclick="openVotingModal('${job.id}')"` : '';
+        
         return `
-          <div class="job-card" data-job-id="${job.id}">
+          <div class="job-card ${clickableClass}" data-job-id="${job.id}" ${clickHandler}>
             ${emblemHtml}
             <div class="job-card-header">
               <h2>> ${job.name}</h2>
@@ -172,16 +395,372 @@
             
             <div class="job-field">
               <span class="field-label">PAYMENT:</span>
-              <span class="field-value field-value--payment">${job.currencyPay}
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <span class="field-value field-value--payment">${job.currencyPay.replace(/m$/i, '')}<img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               </span>
             </div>
             
             ${additionalPayHtml}
+            ${votesHtml}
           </div>
         `;
       }).join('');
     }
+    
+    // Filter job history based on search term and field
+    function filterJobHistory(jobs) {
+      if (!currentJobHistorySearchTerm || currentJobHistorySearchTerm.trim() === '') {
+        return jobs;
+      }
+      
+      const term = currentJobHistorySearchTerm.toLowerCase().trim();
+      const field = currentJobHistorySearchField;
+      
+      return jobs.filter(job => {
+        if (!job) return false;
+        
+        // Search by field
+        if (field === 'all') {
+          // Search all fields
+          const name = (job.name || '').toLowerCase();
+          const description = (job.description || '').toLowerCase();
+          const faction = job.faction ? (job.faction.title || '').toLowerCase() : '';
+          
+          // Check pilot names and callsigns
+          const relatedPilots = currentPilots.filter(p => 
+            p.relatedJobs && p.relatedJobs.includes(job.id)
+          );
+          const pilotMatch = relatedPilots.some(p => 
+            (p.name || '').toLowerCase().includes(term) || 
+            (p.callsign || '').toLowerCase().includes(term)
+          );
+          
+          return name.includes(term) || description.includes(term) || 
+                 faction.includes(term) || pilotMatch;
+        } else if (field === 'name') {
+          const name = (job.name || '').toLowerCase();
+          return name.includes(term);
+        } else if (field === 'faction') {
+          // Handle "None" search for jobs without faction
+          if (term === 'none') {
+            return !job.factionId || job.factionId === '';
+          }
+          const faction = job.faction ? (job.faction.title || '').toLowerCase() : '';
+          return faction.includes(term);
+        } else if (field === 'description') {
+          const description = (job.description || '').toLowerCase();
+          const clientBrief = (job.clientBrief || '').toLowerCase();
+          return description.includes(term) || clientBrief.includes(term);
+        } else if (field === 'pilot') {
+          // Search pilot names and callsigns
+          const relatedPilots = currentPilots.filter(p => 
+            p.relatedJobs && p.relatedJobs.includes(job.id)
+          );
+          return relatedPilots.some(p => 
+            (p.name || '').toLowerCase().includes(term) || 
+            (p.callsign || '').toLowerCase().includes(term)
+          );
+        }
+        
+        return false;
+      });
+    }
+    
+    // Search job history
+    function searchJobHistory() {
+      const searchInput = document.getElementById('job-history-search-input');
+      const searchFieldSelect = document.getElementById('job-history-search-field');
+      
+      currentJobHistorySearchTerm = searchInput.value;
+      currentJobHistorySearchField = searchFieldSelect.value;
+      
+      renderJobHistory(applyAllFilters(currentAllJobs));
+    }
+    
+    // Clear job history search
+    function clearJobHistorySearch() {
+      const searchInput = document.getElementById('job-history-search-input');
+      const searchFieldSelect = document.getElementById('job-history-search-field');
+      
+      searchInput.value = '';
+      searchFieldSelect.value = 'all';
+      currentJobHistorySearchTerm = '';
+      currentJobHistorySearchField = 'all';
+      
+      renderJobHistory(applyAllFilters(currentAllJobs));
+    }
+    
+    // Toggle pilot filter between active and all
+    function togglePilotFilter() {
+      currentPilotFilter = currentPilotFilter === 'active' ? 'all' : 'active';
+      const toggleButton = document.getElementById('pilot-filter-text');
+      toggleButton.textContent = currentPilotFilter === 'active' ? '[ACTIVE PILOTS]' : '[ALL PILOTS]';
+      renderJobHistory(applyAllFilters(currentAllJobs));
+    }
+    
+    // Filter by job status
+    function filterByStatus(status) {
+      currentStatusFilter = status;
+      
+      // Update active pill
+      const pills = document.querySelectorAll('.filter-pill-status');
+      pills.forEach(pill => {
+        if (pill.getAttribute('data-status') === status) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      
+      renderJobHistory(applyAllFilters(currentAllJobs));
+    }
+    
+    // Filter by pilot (active vs all)
+    function filterByPilot(jobs) {
+      if (currentPilotFilter === 'all') {
+        return jobs;
+      }
+      
+      // Filter to only jobs that have at least one active pilot
+      return jobs.filter(job => {
+        const relatedPilots = currentPilots.filter(p => 
+          p.relatedJobs && p.relatedJobs.includes(job.id)
+        );
+        return relatedPilots.some(p => p.active);
+      });
+    }
+    
+    // Filter by status
+    function filterByJobStatus(jobs) {
+      if (currentStatusFilter === 'all') {
+        return jobs;
+      }
+      
+      return jobs.filter(job => job.state === currentStatusFilter);
+    }
+    
+    // Apply all filters in sequence
+    function applyAllFilters(jobs) {
+      let filtered = filterJobHistory(jobs); // Text search filter
+      filtered = filterByPilot(filtered); // Pilot filter
+      filtered = filterByJobStatus(filtered); // Status filter
+      return filtered;
+    }
+    
+    // Render job history list
+    function renderJobHistory(jobs) {
+      const jobHistoryList = document.getElementById('job-history-list');
+      
+      if (!jobHistoryList) {
+        console.error('LANCER Job Board: Missing job-history-list element; cannot render job history.');
+        return;
+      }
+      
+      if (jobs.length === 0) {
+        jobHistoryList.innerHTML = '<p style="text-align: center; opacity: 0.7; margin-top: 20px;">> NO_JOBS_FOUND_</p>';
+        return;
+      }
+      
+      // Sort jobs newest first (reverse array order)
+      const sortedJobs = [...jobs].reverse();
+      
+      jobHistoryList.innerHTML = sortedJobs.map(job => {
+        const jobEmblemHtml = job.emblem ? `
+          <div class="job-list-emblem">
+            <img src="/emblems/${job.emblem}" alt="Job Emblem">
+          </div>
+        ` : `
+          <div class="job-list-emblem">
+            <div style="width: 60px; height: 60px; border: 2px dashed var(--border-color);"></div>
+          </div>
+        `;
+        
+        // Get pilots related to this job
+        const relatedPilots = currentPilots.filter(p => 
+          p.relatedJobs && p.relatedJobs.includes(job.id)
+        );
+        const pilotCallsigns = relatedPilots.map(p => p.callsign).join(', ');
+        const pilotsDisplay = pilotCallsigns || 'NO_PILOTS';
+        
+        // Remove "m" suffix from currencyPay
+        const payment = (job.currencyPay || '0').replace(/m$/i, '');
+        
+        // Get faction name for job title
+        const factionName = job.faction && job.faction.title ? job.faction.title : 'NO_FACTION';
+        const jobTitleWithFaction = `${job.name} - ${factionName}`;
+        
+        return `
+          <div class="job-list-item" onclick="openJobDetails('${job.id}', currentAllJobs, currentFactions)">
+            <div class="job-list-item-left">
+              ${jobEmblemHtml}
+              <div class="job-list-info">
+                <div class="job-list-name">${escapeHtml(jobTitleWithFaction)}</div>
+                <div class="job-list-pilots">PILOTS: ${escapeHtml(pilotsDisplay)}</div>
+                <div class="job-list-payment">PAYMENT: ${escapeHtml(payment)}<img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon" style="width: 12px; height: 12px; margin-left: 3px;"></div>
+              </div>
+            </div>
+            <div class="job-list-status ${job.state.toLowerCase()}">${job.state.toUpperCase()}</div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Open voting modal for a job
+    function openVotingModal(jobId) {
+      selectedVotingJobId = jobId;
+      selectedVotingPilotId = null;
+      
+      const modal = document.getElementById('voting-modal');
+      const pilotsList = document.getElementById('voting-pilots-list');
+      const castVoteBtn = document.getElementById('cast-vote-btn');
+      const voteWarning = document.getElementById('vote-warning');
+      
+      // Disable cast vote button until pilot is selected
+      castVoteBtn.disabled = true;
+      voteWarning.style.display = 'none';
+      
+      // Render pilots list - active first, then inactive with dimmed styling
+      const activePilots = currentPilots.filter(p => p.active);
+      const inactivePilots = currentPilots.filter(p => !p.active);
+      const sortedPilots = [...activePilots, ...inactivePilots];
+      
+      pilotsList.innerHTML = sortedPilots.map(pilot => {
+        const activeClass = pilot.active ? '' : 'pilot-inactive';
+        return `
+          <div class="pilot-item ${activeClass}" data-pilot-id="${pilot.id}" onclick="selectVotingPilot('${pilot.id}')">
+            <span class="pilot-ll">LL${pilot.ll}</span>
+            <span class="pilot-name">${pilot.name} "${pilot.callsign}"</span>
+          </div>
+        `;
+      }).join('');
+      
+      modal.classList.add('active');
+    }
+    
+    // Close voting modal
+    function closeVotingModal() {
+      const modal = document.getElementById('voting-modal');
+      modal.classList.remove('active');
+      selectedVotingJobId = null;
+      selectedVotingPilotId = null;
+    }
+    
+    // Select a pilot for voting
+    function selectVotingPilot(pilotId) {
+      selectedVotingPilotId = pilotId;
+      
+      const castVoteBtn = document.getElementById('cast-vote-btn');
+      const voteWarning = document.getElementById('vote-warning');
+      
+      // Enable cast vote button
+      castVoteBtn.disabled = false;
+      
+      // Update pilot item selection
+      const pilotItems = document.querySelectorAll('.pilot-item');
+      pilotItems.forEach(item => {
+        if (item.dataset.pilotId === pilotId) {
+          item.classList.add('selected');
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+      
+      // Check if pilot has already voted for another job
+      let hasVoted = false;
+      
+      if (currentOngoingVotingPeriod) {
+        for (const jobVote of currentOngoingVotingPeriod.jobVotes) {
+          if (jobVote.votes.includes(pilotId) && jobVote.jobId !== selectedVotingJobId) {
+            hasVoted = true;
+            break;
+          }
+        }
+      }
+      
+      // Display warning if pilot has voted for another job
+      if (hasVoted) {
+        voteWarning.textContent = "THIS PILOT'S PREVIOUS VOTE WILL BE OVERWRITTEN";
+        voteWarning.style.display = 'block';
+      } else {
+        voteWarning.style.display = 'none';
+      }
+    }
+    
+    // Confirm vote casting
+    function confirmVote() {
+      if (!selectedVotingJobId || !selectedVotingPilotId || !currentOngoingVotingPeriod) {
+        return;
+      }
+      
+      const castVoteBtn = document.getElementById('cast-vote-btn');
+      castVoteBtn.disabled = true;
+      
+      fetch(`/api/voting-periods/${currentOngoingVotingPeriod.id}/cast-vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pilotId: selectedVotingPilotId,
+          jobId: selectedVotingJobId
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          closeVotingModal();
+        } else {
+          alert('Error casting vote: ' + (data.message || 'Unknown error'));
+          castVoteBtn.disabled = false;
+        }
+      })
+      .catch(err => {
+        console.error('Error casting vote:', err);
+        alert('Error casting vote. Please try again.');
+        castVoteBtn.disabled = false;
+      });
+    }
+    
+    // Initialize modal handlers
+    initializeModalHandlers();
   </script>
+  
+  <!-- Job Details Modal -->
+  <div id="job-details-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>JOB DETAILS</h2>
+        <button class="modal-close" onclick="closeModal('job-details-modal')">[X]</button>
+      </div>
+      <div class="modal-body">
+        <div id="job-details-container"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Voting Modal -->
+  <div id="voting-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>VOTING INTERFACE</h2>
+        <button class="modal-close" onclick="closeVotingModal()">[X]</button>
+      </div>
+      <div class="modal-body">
+        <p class="voting-instruction">> EACH PILOT MAY ONLY VOTE FOR ONE JOB.</p>
+        <p class="voting-instruction">> SELECT A PILOT TO CAST THEIR VOTE:</p>
+        <div class="pilots-list" id="voting-pilots-list">
+          <!-- Populated by JavaScript -->
+        </div>
+        <p id="vote-warning" class="vote-warning" style="display: none;"></p>
+        <div class="modal-actions">
+          <button class="modal-button confirm-button" id="cast-vote-btn" onclick="confirmVote()" disabled>
+            [CAST_VOTE]
+          </button>
+          <button class="modal-button cancel-button" onclick="closeVotingModal()">
+            [CANCEL]
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

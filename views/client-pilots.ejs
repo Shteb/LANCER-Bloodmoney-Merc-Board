@@ -32,12 +32,20 @@
     </div>
   </div>
   
+  <!-- Search Bar -->
+  <div class="pilot-search-container">
+    <input type="text" id="pilot-search-input" class="pilot-search-input" aria-label="Search pilots by name, callsign, or license level" placeholder="> FILTER_BY_NAME/CALLSIGN/LL_" onkeypress="if(event.key === 'Enter') searchPilots()">
+    <button id="pilot-search-button" class="pilot-search-button" onclick="searchPilots()">[SEARCH]</button>
+    <button id="pilot-clear-button" class="pilot-clear-button" onclick="clearSearch()">[CLEAR]</button>
+  </div>
+  
   <% if (pilots.length === 0) { %>
     <div class="pilots-empty" id="pilots-empty">
       <p>> NO_PILOT_DATA_AVAILABLE_</p>
     </div>
   <% } else { %>
     <div class="pilots-grid" id="pilots-grid">
+      <!-- Pilots will be rendered here by JavaScript -->
       <% 
         // Sort pilots: active first, then inactive
         const sortedPilots = [...pilots].sort((a, b) => {
@@ -50,9 +58,10 @@
           const pilotBalance = pilot.balance || 0;
       %>
         <div class="pilot-card <%= pilot.active ? 'active' : 'inactive' %>" data-pilot-id="<%= pilot.id %>">
-          <div class="pilot-status <%= pilot.active ? 'active' : 'inactive' %>">
-            <%= pilot.active ? 'ACTIVE' : 'INACTIVE' %>
-          </div>
+          <button class="pilot-status-button <%= pilot.active ? 'active' : 'inactive' %>" onclick="openToggleActiveModal('<%= pilot.id %>', '<%= pilot.name.replace(/'/g, "\\'") %>', <%= pilot.active %>)">
+            [<%= pilot.active ? 'ACTIVE' : 'INACTIVE' %>]
+            <img src="/emblems/power-symbol.svg" alt="Power" class="power-icon">
+          </button>
           
           <% if (settings.openTable) { %>
           <div class="pilot-personal-progress">
@@ -74,7 +83,7 @@
           <div class="pilot-field pilot-balance-field">
             <div class="pilot-balance-left">
               <span class="field-label">BALANCE:</span>
-              <span class="field-value"><%= pilotBalance %> <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+              <span class="field-value"><%= pilotBalance %> <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
             </div>
             <button class="balance-history-link" onclick="openPilotBalanceHistory('<%= pilot.id %>', event)">[BALANCE_HISTORY]</button>
           </div>
@@ -98,6 +107,12 @@
   <% } %>
   
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
     // Store current pilots, jobs, factions, manna, and settings data
@@ -106,6 +121,7 @@
     let currentFactions = [];
     let currentManna = <%- JSON.stringify(manna) %>;
     let currentSettings = <%- JSON.stringify(settings) %>;
+    let currentSearchTerm = '';
     
     // Fetch initial jobs and factions data
     fetch('/api/jobs').then(r => r.json()).then(jobs => { currentJobs = jobs; });
@@ -115,7 +131,7 @@
     function handlePilotsUpdate(data) {
       if (data && data.pilots) {
         currentPilots = data.pilots;
-        renderPilots(data.pilots);
+        renderPilots(filterPilots(data.pilots, currentSearchTerm));
       }
     }
     
@@ -129,11 +145,11 @@
           .then(pilots => {
             // Update currentPilots with freshly fetched data and re-render
             currentPilots = pilots;
-            renderPilots(pilots);
+            renderPilots(filterPilots(pilots, currentSearchTerm));
           })
           .catch(() => {
             // If refetch fails, re-render with existing data
-            renderPilots(currentPilots);
+            renderPilots(filterPilots(currentPilots, currentSearchTerm));
           });
       }
     }
@@ -148,6 +164,37 @@
     // Get pilot balance (precomputed server-side)
     function getPilotBalance(pilot) {
       return pilot && typeof pilot.balance === 'number' ? pilot.balance : 0;
+    }
+    
+    // Filter pilots by search term (name, callsign, or license level - case-insensitive partial match)
+    function filterPilots(pilots, searchTerm) {
+      if (!searchTerm || searchTerm.trim() === '') {
+        return pilots;
+      }
+      
+      const term = searchTerm.toLowerCase().trim();
+      return pilots.filter(pilot => {
+        if (!pilot) return false;
+        const name = (pilot.name || '').toLowerCase();
+        const callsign = (pilot.callsign || '').toLowerCase();
+        const ll = String(pilot.ll || '');
+        return name.includes(term) || callsign.includes(term) || ll.includes(term);
+      });
+    }
+    
+    // Search pilots based on input
+    function searchPilots() {
+      const searchInput = document.getElementById('pilot-search-input');
+      currentSearchTerm = searchInput.value;
+      renderPilots(filterPilots(currentPilots, currentSearchTerm));
+    }
+    
+    // Clear search and show all pilots
+    function clearSearch() {
+      const searchInput = document.getElementById('pilot-search-input');
+      searchInput.value = '';
+      currentSearchTerm = '';
+      renderPilots(filterPilots(currentPilots, currentSearchTerm));
     }
     
     // Render pilots grid
@@ -190,6 +237,9 @@
         grid.style.display = 'grid';
         grid.innerHTML = sortedPilots.map(pilot => {
           const notesB64 = btoa(pilot.notes || '');
+          const escapedName = escapeHtml(pilot.name);
+          const escapedCallsign = escapeHtml(pilot.callsign);
+          const escapedNotes = escapeHtml(pilot.notes || 'NO_DATA');
           const escapedNameForOnclick = pilot.name.replace(/'/g, "\\'");
           const personalProgress = pilot.personalOperationProgress || 0;
           const pilotBalance = getPilotBalance(pilot);
@@ -211,36 +261,37 @@
           
           return `
             <div class="pilot-card ${pilot.active ? 'active' : 'inactive'}" data-pilot-id="${pilot.id}">
-              <div class="pilot-status ${pilot.active ? 'active' : 'inactive'}">
-                ${pilot.active ? 'ACTIVE' : 'INACTIVE'}
-              </div>
+              <button class="pilot-status-button ${pilot.active ? 'active' : 'inactive'}" onclick="openToggleActiveModal('${pilot.id}', '${escapedNameForOnclick}', ${pilot.active})">
+                [${pilot.active ? 'ACTIVE' : 'INACTIVE'}]
+                <img src="/emblems/power-symbol.svg" alt="Power" class="power-icon">
+              </button>
               
               ${personalProgressHtml}
               
               <div class="pilot-card-header">
-                <h2>> ${pilot.name}</h2>
-                <div class="pilot-callsign">CALLSIGN: ${pilot.callsign}</div>
+                <h2>> ${escapedName}</h2>
+                <div class="pilot-callsign">CALLSIGN: ${escapedCallsign}</div>
                 <div class="pilot-ll">LICENSE_LEVEL: ${pilot.ll}</div>
               </div>
               
               <div class="pilot-field pilot-balance-field">
                 <div class="pilot-balance-left">
                   <span class="field-label">BALANCE:</span>
-                  <span class="field-value">${pilotBalance} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+                  <span class="field-value">${pilotBalance} <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
                 </div>
-                <button class="balance-history-link" onclick="openPilotBalanceHistory('${pilot.id}', event)">[BALANCE_HISTORY]</button>
+                <button class="balance-history-link" onclick="openPilotBalanceHistory('${escapeHtml(pilot.id)}', event)">[BALANCE_HISTORY]</button>
               </div>
               
               <div class="pilot-field">
                 <span class="field-label">NOTES:</span>
-                <span class="field-value" style="white-space: pre-line;">${pilot.notes || 'NO_DATA'}</span>
+                <span class="field-value" style="white-space: pre-line;">${escapedNotes}</span>
               </div>
               
               <div class="pilot-actions">
-                <button class="pilot-button" data-pilot-id="${pilot.id}" data-pilot-name="${pilot.name}" data-pilot-notes-b64="${notesB64}" onclick="openEditNotes(this.dataset.pilotId, this.dataset.pilotName, atob(this.dataset.pilotNotesB64))">
+                <button class="pilot-button" data-pilot-id="${escapeHtml(pilot.id)}" data-pilot-name="${escapedName}" data-pilot-notes-b64="${notesB64}" onclick="openEditNotes(this.dataset.pilotId, this.dataset.pilotName, atob(this.dataset.pilotNotesB64))">
                   [EDIT_NOTES]
                 </button>
-                <button class="pilot-button" onclick="openPilotJobHistory('${pilot.id}', '${escapedNameForOnclick}')">
+                <button class="pilot-button" onclick="openPilotJobHistory('${escapeHtml(pilot.id)}', '${escapedNameForOnclick}')">
                   [JOB_HISTORY]
                 </button>
               </div>
@@ -394,9 +445,9 @@
           return `
             <div class="transaction-item-horizontal">
               <span class="transaction-date">${date}</span>
-              <span class="transaction-amount ${amountClass}">${amountPrefix}${transaction.amount} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+              <span class="transaction-amount ${amountClass}">${amountPrefix}${transaction.amount} <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
               <span class="transaction-description">${transaction.description}</span>
-              <span class="transaction-balance">BALANCE: ${transaction.pilotBalance} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon"></span>
+              <span class="transaction-balance">BALANCE: ${transaction.pilotBalance} <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
             </div>
           `;
         }).join('');
@@ -405,8 +456,79 @@
       balanceHistoryModal.classList.add('active');
     }
     
+    // Toggle active/inactive modal state
+    let toggleActivePilotId = null;
+    let toggleActivePilotName = '';
+    let toggleActiveCurrentState = false;
+    
+    /**
+     * Open toggle active/inactive confirmation modal
+     */
+    function openToggleActiveModal(pilotId, pilotName, currentActiveState) {
+      toggleActivePilotId = pilotId;
+      toggleActivePilotName = pilotName;
+      toggleActiveCurrentState = currentActiveState;
+      
+      // Update modal content
+      const modal = document.getElementById('toggle-active-modal');
+      const modalMessage = document.getElementById('toggle-active-message');
+      const newState = currentActiveState ? 'INACTIVE' : 'ACTIVE';
+      const currentStateText = currentActiveState ? 'ACTIVE' : 'INACTIVE';
+      
+      modalMessage.textContent = `Change ${pilotName} from ${currentStateText} to ${newState}?`;
+      
+      // Show modal
+      modal.classList.add('active');
+    }
+    
+    /**
+     * Confirm toggle active/inactive
+     */
+    function confirmToggleActive() {
+      if (!toggleActivePilotId) {
+        alert('No pilot selected');
+        return;
+      }
+      
+      fetch(`/api/pilots/${toggleActivePilotId}/toggle-active`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          closeToggleActiveModal();
+          // SSE will update the UI
+        } else {
+          alert('Error: ' + (data.message || 'Failed to toggle pilot state'));
+        }
+      })
+      .catch(err => {
+        console.error('Error toggling pilot state:', err);
+        alert('Error: Failed to toggle pilot state');
+      });
+    }
+    
+    /**
+     * Close toggle active modal
+     */
+    function closeToggleActiveModal() {
+      const modal = document.getElementById('toggle-active-modal');
+      modal.classList.remove('active');
+      
+      // Reset state
+      toggleActivePilotId = null;
+      toggleActivePilotName = '';
+      toggleActiveCurrentState = false;
+    }
+    
     // Initialize modal handlers on page load
     initializeModalHandlers();
+    
+    // Render initial pilots
+    renderPilots(currentPilots);
   </script>
   
   <!-- Edit Notes Modal -->
@@ -460,6 +582,27 @@
       </div>
       <div class="modal-body">
         <div id="balance-history-container" class="balance-history-list"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toggle Active/Inactive Confirmation Modal -->
+  <div id="toggle-active-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>> CONFIRM_STATE_CHANGE_</h2>
+        <button class="modal-close" onclick="closeToggleActiveModal()">[X]</button>
+      </div>
+      <div class="modal-body">
+        <p class="toggle-active-message" id="toggle-active-message"></p>
+        <div class="modal-actions">
+          <button class="modal-button confirm-button" onclick="confirmToggleActive()">
+            [CONFIRM]
+          </button>
+          <button class="modal-button cancel-button" onclick="closeToggleActiveModal()">
+            [CANCEL]
+          </button>
+        </div>
       </div>
     </div>
   </div>

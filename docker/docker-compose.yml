@@ -1,0 +1,15 @@
+services:
+  blood-money-board-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - "${PWD}/../data:/app/data"
+      - "${PWD}/../logo_art:/app/logo_art"
+    environment:
+      - PORT=${PORT:-3000}
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-lancer-job-board-secret-key-change-in-production}
+    restart: unless-stopped

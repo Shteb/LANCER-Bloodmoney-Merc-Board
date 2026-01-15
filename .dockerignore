@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Build artifacts
+dist/
+
+# Data and logs (will be mounted as volume)
+data/
+*.log
+
+# Development and testing
+.vscode/
+.idea/
+*.test.js
+test-*.js
+
+# Documentation
+README.md
+DISTRIBUTION.md
+USER GUIDE.txt
+docker/DOCKER-README.md
+docker/RENDER_README.md
+
+# Docker files (not needed in image)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.github/
+
+# OS files
+.DS_Store
+Thumbs.db

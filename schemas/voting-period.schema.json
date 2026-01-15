@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/voting-period.schema.json",
+  "title": "Voting Period",
+  "description": "A voting period for job board voting. Only one voting period may be in Ongoing state at a time.",
+  "type": "object",
+  "required": ["id", "state", "jobVotes", "endTime"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)",
+      "format": "uuid"
+    },
+    "state": {
+      "type": "string",
+      "description": "Voting period state. Only one period may be Ongoing at a time.",
+      "enum": ["Ongoing", "Archived"]
+    },
+    "jobVotes": {
+      "type": "array",
+      "description": "List of jobs with their associated votes. Each pilot may only vote for one job per voting period.",
+      "items": {
+        "type": "object",
+        "required": ["jobId", "votes"],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "UUID of an Active Job at the time of voting period creation",
+            "format": "uuid"
+          },
+          "votes": {
+            "type": "array",
+            "description": "Array of Pilot UUIDs representing pilots who have voted for this job. Each pilot can only appear once across all jobVotes in this period.",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "endTime": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "ISO 8601 date-time string indicating when voting ends",
+          "format": "date-time"
+        },
+        {
+          "type": "null",
+          "description": "Null indicates infinite duration (no end time)"
+        }
+      ],
+      "description": "DateTime when voting ends, or null for infinite duration"
+    }
+  },
+  "additionalProperties": false,
+  "$comment": "Only one voting period may have state 'Ongoing' at a time.\nPilots may only vote for one job per voting period (enforced in code).\nWhen a voting period ends, it must be set to Archived state.\nJob UUIDs reference jobs.json - display must handle deleted jobs gracefully.\nPilot UUIDs reference pilots.json - display must handle deleted pilots gracefully.\nendTime is nullable - null means infinite duration."
+}

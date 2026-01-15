@@ -2,6 +2,9 @@
  * Shared handler functions for SSE updates across all client pages
  */
 
+// Global variable to store current currency icon path
+let currentCurrencyIcon = 'manna_symbol.svg';
+
 /**
  * HTML escape function to prevent XSS attacks
  * Used across all client views for consistent escaping
@@ -87,6 +90,18 @@ function handleSettingsUpdate_Shared(data) {
   // Update color scheme
   if (settings.colorScheme) {
     document.body.className = settings.colorScheme;
+  }
+  
+  // Update currency icon
+  if (settings.currencyIcon) {
+    currentCurrencyIcon = settings.currencyIcon;
+    // Update all currency icons on the page
+    const currencyIcons = document.querySelectorAll('.currency-icon');
+    currencyIcons.forEach(icon => {
+      if (icon.tagName === 'IMG' && (icon.src.includes('/emblems/') || icon.src.includes('/css/images/manna_symbol.svg'))) {
+        icon.src = `/emblems/${settings.currencyIcon}?v=${Date.now()}`;
+      }
+    });
   }
   
   // Update operation progress bar
@@ -216,7 +231,7 @@ function openJobDetails(jobId, jobs, factions) {
       
       <div class="job-details-field">
         <span class="field-label">PAYMENT:</span>
-        <span class="field-value">${job.currencyPay} <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon" style="width: 14px; height: 14px;"></span>
+        <span class="field-value">${job.currencyPay.replace(/m$/i, '')}<img src="/emblems/${currentCurrencyIcon}" alt="Currency Icon" class="currency-icon" style="width: 14px; height: 14px; margin-left: 3px;"></span>
       </div>
       
       ${job.additionalPay ? `

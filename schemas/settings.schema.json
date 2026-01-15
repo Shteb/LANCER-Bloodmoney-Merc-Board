@@ -2,17 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lancer-job-board.local/schemas/settings.schema.json",
   "title": "Settings",
-  "description": "Global settings for the LANCER Bloodmoney Merc Board application",
+  "description": "Global settings for the LANCER RPG Job Board application",
   "type": "object",
-  "required": [
-    "portalHeading",
-    "currentGalacticPos",
-    "colorScheme",
-    "userGroup",
-    "operationProgress",
-    "clientPassword",
-    "adminPassword"
-  ],
+  "required": ["portalHeading", "currentGalacticPos", "colorScheme", "userGroup", "operationProgress", "clientPassword", "adminPassword"],
   "properties": {
     "portalHeading": {
       "type": "string",
@@ -31,12 +23,7 @@
     "colorScheme": {
       "type": "string",
       "description": "Color theme",
-      "enum": [
-        "grey",
-        "orange",
-        "green",
-        "blue"
-      ]
+      "enum": ["grey", "orange", "green", "blue"]
     },
     "userGroup": {
       "type": "string",
@@ -70,6 +57,12 @@
       "minimum": -100,
       "maximum": 300,
       "default": 0
+    },
+    "currencyIcon": {
+      "type": "string",
+      "description": "Filename of the SVG icon used for currency display. Must be a valid emblem filename from logo_art directory.",
+      "pattern": "^[a-zA-Z0-9_\\-\\.]+\\.svg$",
+      "default": "manna_symbol.svg"
     }
   },
   "additionalProperties": false

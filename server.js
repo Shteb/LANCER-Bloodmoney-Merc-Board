@@ -152,6 +152,7 @@ const FACTIONS_FILE = path.join(DATA_DIR, 'factions.json');
 const PILOTS_FILE = path.join(DATA_DIR, 'pilots.json');
 const RESERVES_FILE = path.join(DATA_DIR, 'reserves.json');
 const STORE_CONFIG_FILE = path.join(DATA_DIR, 'store-config.json');
+const VOTING_PERIODS_FILE = path.join(DATA_DIR, 'voting-periods.json');
 
 // Ensure data and logo_art directories exist
 if (!fs.existsSync(DATA_DIR)) {
@@ -554,7 +555,8 @@ const DEFAULT_SETTINGS = {
   openTable: false,
   clientPassword: 'IMHOTEP',
   adminPassword: 'TARASQUE',
-  facilityCostModifier: 0
+  facilityCostModifier: 0,
+  currencyIcon: 'manna_symbol.svg'
 };
 
 // Read settings from file
@@ -1113,6 +1115,64 @@ function migrateStoreConfigIfNeeded() {
 }
 
 
+// Read Voting Periods
+function readVotingPeriods() {
+  try {
+    const data = fs.readFileSync(VOTING_PERIODS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return { periods: [] };
+  }
+}
+
+// Write Voting Periods
+function writeVotingPeriods(votingPeriodsData) {
+  fs.writeFileSync(VOTING_PERIODS_FILE, JSON.stringify(votingPeriodsData, null, 2));
+}
+
+// Initialize voting periods with empty data
+function initializeVotingPeriods() {
+  if (!fs.existsSync(VOTING_PERIODS_FILE)) {
+    const defaultVotingPeriods = {
+      periods: []
+    };
+    writeVotingPeriods(defaultVotingPeriods);
+  }
+}
+
+// Helper function to auto-archive ongoing voting period
+async function archiveOngoingVotingPeriod(reason) {
+  const lockKey = 'voting-periods';
+  
+  try {
+    await fileMutex.acquire(lockKey);
+    
+    const votingPeriodsData = readVotingPeriods();
+    const ongoingPeriod = helpers.getOngoingVotingPeriod(votingPeriodsData.periods);
+    
+    if (ongoingPeriod) {
+      const periodIndex = votingPeriodsData.periods.findIndex(p => p.id === ongoingPeriod.id);
+      if (periodIndex !== -1) {
+        votingPeriodsData.periods[periodIndex].state = 'Archived';
+        writeVotingPeriods(votingPeriodsData);
+        
+        // Broadcast voting period update
+        broadcastSSE('voting-periods', { 
+          action: 'auto-archive', 
+          votingPeriod: votingPeriodsData.periods[periodIndex], 
+          periods: votingPeriodsData.periods,
+          reason: reason
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error auto-archiving voting period:', error);
+  } finally {
+    fileMutex.release(lockKey);
+  }
+}
+
+
 // File storage (Upload Emblem)
 const multer = require('multer');
 const potrace = require('potrace');
@@ -1208,6 +1268,7 @@ initializeData();
 initializeReserves();
 initializeStoreConfig();
 initializePilots();
+initializeVotingPeriods();
 
 // Migrate base modules to facilities (clean break migration)
 migrateBaseToFacilities();
@@ -1419,7 +1480,7 @@ app.get('/client/pilots', requireClientAuth, (req, res) => {
   res.render('client-pilots', { settings, colorScheme: settings.colorScheme, pilots: enrichedPilots, manna });
 });
 
-app.get('/client/procurement', requireClientAuth, (req, res) => {
+app.get('/client/shop', requireClientAuth, (req, res) => {
   const settings = readSettings();
   const pilots = readPilots();
   const manna = readManna();
@@ -1444,7 +1505,7 @@ app.get('/client/procurement', requireClientAuth, (req, res) => {
       return a.name.localeCompare(b.name);
     });
   
-  res.render('client-procurement', { 
+  res.render('client-shop', { 
     settings, 
     colorScheme: settings.colorScheme, 
     pilots: enrichedPilots,
@@ -1487,6 +1548,7 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   const pilots = readPilots();
   const reserves = readReserves();
   const storeConfig = readStoreConfig();
+  const votingPeriodsData = readVotingPeriods();
   const emblemFiles = fs.readdirSync(LOGO_ART_DIR)
     .filter(file => file.endsWith('.svg'))
     .sort();
@@ -1503,12 +1565,18 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   // Create faction lookup map for efficient template rendering
   const factionMap = createFactionMap(enrichedFactions);
   
-  // Enrich jobs with faction data and state class
+  // Enrich jobs with faction data and state class, then reverse for newest first
   const enrichedJobs = jobs.map(job => ({
     ...job,
     stateClass: job.state ? job.state.toLowerCase() : helpers.DEFAULT_JOB_STATE.toLowerCase(),
     faction: factionMap[job.factionId] || null
-  }));
+  })).reverse();
+  
+  // Get active job IDs for voting period creation
+  const activeJobIds = jobs.filter(j => j.state === 'Active').map(j => j.id);
+  
+  // Get ongoing voting period
+  const ongoingPeriod = helpers.getOngoingVotingPeriod(votingPeriodsData.periods);
   
   res.render('admin', { 
     jobs: enrichedJobs, 
@@ -1522,6 +1590,9 @@ app.get('/admin', requireAdminAuth, (req, res) => {
     pilots: enrichedPilots,
     reserves,
     storeConfig,
+    votingPeriods: votingPeriodsData.periods || [],
+    activeJobIds: activeJobIds,
+    ongoingPeriod: ongoingPeriod,
     emblems: emblemFiles, 
     formatEmblemTitle: helpers.formatEmblemTitle,
     jobStates: helpers.JOB_STATES,
@@ -1572,7 +1643,7 @@ app.post('/api/jobs', requireAdminAuth, (req, res) => {
   res.json({ success: true, job: newJob });
 });
 
-app.put('/api/jobs/:id', requireAdminAuth, (req, res) => {
+app.put('/api/jobs/:id', requireAdminAuth, async (req, res) => {
   const jobs = readJobs();
   const factions = readFactions();
   
@@ -1581,13 +1652,17 @@ app.put('/api/jobs/:id', requireAdminAuth, (req, res) => {
     return res.status(404).json({ success: false, message: 'Job not found' });
   }
   
+  // Store old job state to check for Active -> other state transitions
+  const oldJob = jobs[index];
+  const wasActive = oldJob.state === 'Active';
+  
   // Validate job data
   const validation = validateJobData(req.body, factions, uploadDir);
   if (!validation.valid) {
     return res.status(400).json({ success: false, message: validation.message });
   }
   
-  jobs[index] = {
+  const newJob = {
     id: req.params.id,
     name: req.body.name,
     rank: parseInt(req.body.rank),
@@ -1600,7 +1675,14 @@ app.put('/api/jobs/:id', requireAdminAuth, (req, res) => {
     state: validation.state,
     factionId: validation.factionId
   };
+  
+  jobs[index] = newJob;
   writeJobs(jobs);
+  
+  // Auto-archive ongoing voting period if Active job changes to another state
+  if (wasActive && newJob.state !== 'Active') {
+    await archiveOngoingVotingPeriod('Active job state changed');
+  }
   
   // Broadcast SSE update
   broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs });
@@ -1620,13 +1702,17 @@ app.delete('/api/jobs/:id', requireAdminAuth, (req, res) => {
 });
 
 // API endpoint to update job state only
-app.put('/api/jobs/:id/state', requireAdminAuth, (req, res) => {
+app.put('/api/jobs/:id/state', requireAdminAuth, async (req, res) => {
   const jobs = readJobs();
   const index = jobs.findIndex(j => j.id === req.params.id);
   
   if (index === -1) {
     return res.status(404).json({ success: false, message: 'Job not found' });
   }
+  
+  // Store old job state to check for Active -> other state transitions
+  const oldJob = jobs[index];
+  const wasActive = oldJob.state === 'Active';
   
   // Validate job state
   const stateValidation = helpers.validateJobState(req.body.state);
@@ -1637,6 +1723,11 @@ app.put('/api/jobs/:id/state', requireAdminAuth, (req, res) => {
   // Update only the state field
   jobs[index].state = stateValidation.value;
   writeJobs(jobs);
+  
+  // Auto-archive ongoing voting period if Active job changes to another state
+  if (wasActive && stateValidation.value !== 'Active') {
+    await archiveOngoingVotingPeriod('Active job state changed');
+  }
   
   // Broadcast SSE update
   broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs });
@@ -1721,6 +1812,18 @@ app.put('/api/settings', requireAdminAuth, (req, res) => {
     });
   }
   
+  // Validate currency icon (optional, defaults to manna_symbol.svg)
+  const currencyIcon = (req.body.currencyIcon ?? 'manna_symbol.svg').trim();
+  if (currencyIcon !== '') {
+    const emblemValidation = helpers.validateEmblem(currencyIcon, path.join(BASE_PATH, 'logo_art'));
+    if (!emblemValidation.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid currency icon: ${emblemValidation.message}` 
+      });
+    }
+  }
+  
   const settings = {
     portalHeading: headingValidation.value,
     unt: unt.trim(),
@@ -1731,7 +1834,8 @@ app.put('/api/settings', requireAdminAuth, (req, res) => {
     openTable: openTable,
     clientPassword: clientPasswordValidation.value,
     adminPassword: adminPasswordValidation.value,
-    facilityCostModifier: facilityCostModifier
+    facilityCostModifier: facilityCostModifier,
+    currencyIcon: currencyIcon || 'manna_symbol.svg'
   };
   
   writeSettings(settings);
@@ -1856,6 +1960,234 @@ app.delete('/api/reserves/:id', requireAdminAuth, (req, res) => {
   broadcastSSE('reserves', { action: 'delete', reserveId: req.params.id, reserves });
   
   res.json({ success: true, reserve: deletedReserve });
+});
+
+// ==================== VOTING PERIOD API ENDPOINTS ====================
+app.get('/api/voting-periods', requireAnyAuth, (req, res) => {
+  const votingPeriodsData = readVotingPeriods();
+  res.json(votingPeriodsData);
+});
+
+app.post('/api/voting-periods', requireAdminAuth, async (req, res) => {
+  const lockKey = 'voting-periods';
+  
+  try {
+    await fileMutex.acquire(lockKey);
+    
+    const votingPeriodsData = readVotingPeriods();
+    const jobs = readJobs();
+    const pilots = readPilots();
+    
+    // Check if there's already an ongoing voting period
+    const existingOngoing = helpers.getOngoingVotingPeriod(votingPeriodsData.periods);
+    if (existingOngoing) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'There is already an ongoing voting period. Please archive it before starting a new one.' 
+      });
+    }
+    
+    // Validate voting period data
+    const validation = helpers.validateVotingPeriodData(req.body, jobs, pilots);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+    
+    const newVotingPeriod = {
+      id: helpers.generateId(),
+      state: validation.state,
+      jobVotes: validation.jobVotes,
+      endTime: validation.endTime
+    };
+    
+    votingPeriodsData.periods.push(newVotingPeriod);
+    writeVotingPeriods(votingPeriodsData);
+    
+    // Broadcast SSE update
+    broadcastSSE('voting-periods', { action: 'create', votingPeriod: newVotingPeriod, periods: votingPeriodsData.periods });
+    
+    res.json({ success: true, votingPeriod: newVotingPeriod });
+  } catch (error) {
+    console.error('Error creating voting period:', error);
+    res.status(500).json({ success: false, message: 'Failed to create voting period' });
+  } finally {
+    fileMutex.release(lockKey);
+  }
+});
+
+app.put('/api/voting-periods/:id', requireAdminAuth, async (req, res) => {
+  const lockKey = 'voting-periods';
+  
+  try {
+    await fileMutex.acquire(lockKey);
+    
+    const votingPeriodsData = readVotingPeriods();
+    const jobs = readJobs();
+    const pilots = readPilots();
+    
+    const index = votingPeriodsData.periods.findIndex(p => p.id === req.params.id);
+    
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Voting period not found' });
+    }
+    
+    // Validate voting period data
+    const validation = helpers.validateVotingPeriodData(req.body, jobs, pilots);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+    
+    // If changing state to Ongoing, check if there's already another ongoing period
+    if (validation.state === 'Ongoing' && votingPeriodsData.periods[index].state !== 'Ongoing') {
+      const existingOngoing = helpers.getOngoingVotingPeriod(votingPeriodsData.periods);
+      if (existingOngoing && existingOngoing.id !== req.params.id) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'There is already an ongoing voting period. Please archive it before starting a new one.' 
+        });
+      }
+    }
+    
+    const updatedVotingPeriod = {
+      id: req.params.id,
+      state: validation.state,
+      jobVotes: validation.jobVotes,
+      endTime: validation.endTime
+    };
+    
+    votingPeriodsData.periods[index] = updatedVotingPeriod;
+    writeVotingPeriods(votingPeriodsData);
+    
+    // Broadcast SSE update
+    broadcastSSE('voting-periods', { action: 'update', votingPeriod: updatedVotingPeriod, periods: votingPeriodsData.periods });
+    
+    res.json({ success: true, votingPeriod: updatedVotingPeriod });
+  } catch (error) {
+    console.error('Error updating voting period:', error);
+    res.status(500).json({ success: false, message: 'Failed to update voting period' });
+  } finally {
+    fileMutex.release(lockKey);
+  }
+});
+
+app.delete('/api/voting-periods/:id', requireAdminAuth, async (req, res) => {
+  const lockKey = 'voting-periods';
+  
+  try {
+    await fileMutex.acquire(lockKey);
+    
+    const votingPeriodsData = readVotingPeriods();
+    
+    const index = votingPeriodsData.periods.findIndex(p => p.id === req.params.id);
+    
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Voting period not found' });
+    }
+    
+    const deletedPeriod = votingPeriodsData.periods[index];
+    votingPeriodsData.periods.splice(index, 1);
+    writeVotingPeriods(votingPeriodsData);
+    
+    // Broadcast SSE update (normalized to include votingPeriod instead of periodId)
+    broadcastSSE('voting-periods', { action: 'delete', votingPeriod: deletedPeriod, periods: votingPeriodsData.periods });
+    
+    res.json({ success: true, votingPeriod: deletedPeriod });
+  } catch (error) {
+    console.error('Error deleting voting period:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete voting period' });
+  } finally {
+    fileMutex.release(lockKey);
+  }
+});
+
+// Cast vote endpoint - CLIENT accessible
+app.post('/api/voting-periods/:id/cast-vote', requireClientAuth, async (req, res) => {
+  const lockKey = 'voting-periods';
+  
+  try {
+    // Acquire mutex lock to prevent race conditions
+    await fileMutex.acquire(lockKey);
+    
+    const votingPeriodsData = readVotingPeriods();
+    const pilots = readPilots();
+    const jobs = readJobs();
+    
+    const { pilotId, jobId } = req.body;
+    
+    // Validate required fields
+    if (!pilotId || !jobId) {
+      return res.status(400).json({ success: false, message: 'pilotId and jobId are required' });
+    }
+    
+    // Find voting period
+    const votingPeriod = votingPeriodsData.periods.find(p => p.id === req.params.id);
+    if (!votingPeriod) {
+      return res.status(404).json({ success: false, message: 'Voting period not found' });
+    }
+    
+    // Validate voting period is ongoing
+    if (votingPeriod.state !== 'Ongoing') {
+      return res.status(400).json({ success: false, message: 'Voting period is not ongoing' });
+    }
+    
+    // Check if voting period has ended (server-side validation)
+    if (votingPeriod.endTime !== null) {
+      const now = new Date();
+      const endTime = new Date(votingPeriod.endTime);
+      if (now > endTime) {
+        return res.status(400).json({ success: false, message: 'Voting period has ended' });
+      }
+    }
+    
+    // Validate pilot exists
+    const pilot = pilots.find(p => p.id === pilotId);
+    if (!pilot) {
+      return res.status(400).json({ success: false, message: 'Pilot not found' });
+    }
+    
+    // Validate job exists and is Active state
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) {
+      return res.status(400).json({ success: false, message: 'Job not found' });
+    }
+    if (job.state !== 'Active') {
+      return res.status(400).json({ success: false, message: 'Can only vote for Active jobs' });
+    }
+    
+    // Validate job is in the voting period
+    const jobVoteEntry = votingPeriod.jobVotes.find(jv => jv.jobId === jobId);
+    if (!jobVoteEntry) {
+      return res.status(400).json({ success: false, message: 'Job is not part of this voting period' });
+    }
+    
+    // Remove pilot's vote from any other job (pilot can only vote for one job)
+    votingPeriod.jobVotes.forEach(jv => {
+      const index = jv.votes.indexOf(pilotId);
+      if (index !== -1) {
+        jv.votes.splice(index, 1);
+      }
+    });
+    
+    // Add pilot's vote to the selected job (if not already there)
+    if (!jobVoteEntry.votes.includes(pilotId)) {
+      jobVoteEntry.votes.push(pilotId);
+    }
+    
+    // Update the voting period
+    const periodIndex = votingPeriodsData.periods.findIndex(p => p.id === req.params.id);
+    votingPeriodsData.periods[periodIndex] = votingPeriod;
+    writeVotingPeriods(votingPeriodsData);
+    
+    // Broadcast SSE update
+    broadcastSSE('voting-periods', { action: 'vote-cast', votingPeriod: votingPeriod, periods: votingPeriodsData.periods });
+    
+    res.json({ success: true, votingPeriod: votingPeriod });
+  } catch (error) {
+    console.error('Error casting vote:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    fileMutex.release(lockKey);
+  }
 });
 
 // ==================== STORE CONFIG API ENDPOINTS ====================
@@ -3493,6 +3825,29 @@ app.put('/api/pilots/:id/reserves', requireAnyAuth, (req, res) => {
   res.json({ success: true, pilot: pilots[index] });
 });
 
+// Toggle pilot active/inactive state (CLIENT-side endpoint)
+app.put('/api/pilots/:id/toggle-active', requireClientAuth, (req, res) => {
+  const pilots = readPilots();
+  const index = pilots.findIndex(p => p.id === req.params.id);
+  
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Pilot not found' });
+  }
+  
+  // Toggle active state
+  pilots[index].active = !pilots[index].active;
+  writePilots(pilots);
+  
+  // Enrich pilot with balance for SSE broadcast
+  const manna = readManna();
+  const enrichedPilot = enrichPilotsWithBalance([pilots[index]], manna)[0];
+  
+  // Broadcast SSE update
+  broadcastSSE('pilots', { action: 'update', pilot: enrichedPilot, pilots: enrichPilotsWithBalance(pilots, manna) });
+  
+  res.json({ success: true, pilot: enrichedPilot });
+});
+
 // Update pilot reserves management (ADMIN-side endpoint)
 app.put('/api/pilots/:id/reserves-management', requireAdminAuth, (req, res) => {
   const pilots = readPilots();
@@ -3741,10 +4096,10 @@ app.put('/api/pilots/:id/personal-transactions', requireAdminAuth, (req, res) =>
   res.json({ success: true, pilot: enrichedPilot });
 });
 
-// Procurement purchase endpoint
-app.post('/api/procurement/purchase', requireClientAuth, async (req, res) => {
+// Shop purchase endpoint
+app.post('/api/shop/purchase', requireClientAuth, async (req, res) => {
   // Acquire lock to prevent race conditions
-  await fileMutex.acquire('procurement-purchase');
+  await fileMutex.acquire('shop-purchase');
   
   try {
     const { itemId, itemType, expensePilots, assignee } = req.body;
@@ -3928,22 +4283,24 @@ app.post('/api/procurement/purchase', requireClientAuth, async (req, res) => {
     });
   } finally {
     // Always release the lock
-    fileMutex.release('procurement-purchase');
+    fileMutex.release('shop-purchase');
   }
 });
 
 // Progress all jobs endpoint
-app.post('/api/jobs/progress-all', requireAdminAuth, (req, res) => {
+app.post('/api/jobs/progress-all', requireAdminAuth, async (req, res) => {
   const jobs = readJobs();
   const pilots = readPilots();
   
   // Update job states and track newly active jobs in a single pass
   const newlyActiveJobIds = [];
   let jobsModified = 0;
+  let hasActiveToIgnored = false;
   
   const updatedJobs = jobs.map(job => {
     if (job.state === 'Active') {
       jobsModified++;
+      hasActiveToIgnored = true;
       return { ...job, state: 'Ignored' };
     } else if (job.state === 'Pending') {
       jobsModified++;
@@ -3952,6 +4309,11 @@ app.post('/api/jobs/progress-all', requireAdminAuth, (req, res) => {
     }
     return job;
   });
+  
+  // Auto-archive ongoing voting period if any Active jobs changed to Ignored
+  if (hasActiveToIgnored) {
+    await archiveOngoingVotingPeriod('Job progression (Active → Ignored)');
+  }
   
   // Add newly active jobs to all active pilots' related jobs
   const updatedPilots = pilots.map(pilot => {

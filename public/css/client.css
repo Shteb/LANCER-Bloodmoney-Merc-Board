@@ -676,8 +676,8 @@
 }
 
 .job-list-emblem {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   flex-shrink: 0;
 }
 
@@ -701,6 +701,14 @@
 .job-list-pilots {
   font-size: 12px;
   color: var(--label-color);
+}
+
+.job-list-payment {
+  font-size: 12px;
+  color: var(--label-color);
+  display: flex;
+  align-items: center;
+  margin-top: 3px;
 }
 
 .job-list-status {
@@ -811,6 +819,153 @@
 }
 
 /* Pilot cards */
+.pilot-search-container {
+  margin-top: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 800px;
+}
+
+.pilot-search-input {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
+  font-family: 'Courier New', monospace;
+  transition: all 0.3s ease;
+}
+
+.pilot-search-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px var(--border-color);
+}
+
+.pilot-search-button,
+.pilot-clear-button {
+  padding: 12px 20px;
+  font-size: 14px;
+  background-color: var(--hover-bg);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.pilot-search-button:hover,
+.pilot-clear-button:hover {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  box-shadow: 0 0 15px var(--border-color);
+}
+
+/* Job history section */
+.job-history-section {
+  margin-top: 40px;
+  padding: 20px;
+  border-top: 3px solid var(--border-color);
+}
+
+.job-history-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px var(--text-color);
+}
+
+.job-history-search-dropdown {
+  padding: 12px;
+  font-size: 14px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.job-history-search-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 10px var(--border-color);
+}
+
+.job-history-search-dropdown option {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Job history filters */
+.job-history-filters {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.filter-pill-toggle {
+  padding: 10px 15px;
+  font-size: 14px;
+  background-color: var(--hover-bg);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  min-width: 173px;
+  text-align: center;
+}
+
+.filter-pill-toggle:hover {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  box-shadow: 0 0 15px var(--border-color);
+}
+
+.job-status-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text-color);
+  font-family: 'Courier New', monospace;
+}
+
+.filter-pill-status {
+  padding: 8px 12px;
+  font-size: 12px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.filter-pill-status:hover {
+  background-color: var(--hover-bg);
+  box-shadow: 0 0 10px var(--border-color);
+}
+
+.filter-pill-status.active {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  box-shadow: 0 0 15px var(--border-color);
+}
+
 .pilots-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -901,7 +1056,7 @@
 
 .balance-history-link {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-color);
   color: var(--text-color);
   font-family: 'Courier New', monospace;
   font-size: 14px;
@@ -936,6 +1091,61 @@
 .pilot-status.inactive {
   opacity: 0.6;
 }
+
+/* Pilot status button - clickable version of pilot-status */
+.pilot-status-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pilot-status-button:hover {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  box-shadow: 0 0 10px var(--border-color);
+}
+
+.pilot-status-button.active {
+  text-shadow: 0 0 8px var(--text-color);
+}
+
+.pilot-status-button.inactive {
+  opacity: 0.6;
+}
+
+.pilot-status-button.inactive:hover {
+  opacity: 0.8;
+}
+
+/* Power icon styling - matches button text color and opacity */
+.pilot-status-button .power-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  /* Invert to white to match button text, then use brightness to control intensity */
+  filter: invert(100%) brightness(1);
+}
+
+.pilot-status-button.active .power-icon {
+  /* Active: white with glow matching text-shadow */
+  filter: invert(100%) brightness(1) drop-shadow(0 0 8px currentColor) drop-shadow(0 0 12px currentColor);
+}
+
+/* Inactive opacity is inherited from .pilot-status-button.inactive which sets opacity: 0.6 on the entire button */
+
 
 .pilot-actions {
   display: flex;
@@ -1117,8 +1327,8 @@
   }
 }
 
-/* Procurement Page Styles */
-.procurement-container {
+/* Shop Page Styles */
+.shop-container {
   max-width: 1400px;
   margin: 30px auto;
   padding: 0 20px;
@@ -1158,7 +1368,7 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 7px;
 }
 
 .reserve-card:hover {
@@ -1444,7 +1654,19 @@
   border-color: var(--border-color);
 }
 
-/* Responsive Procurement */
+.modal-button.confirm-button {
+  border-color: var(--glow-color);
+}
+
+/* Toggle active/inactive modal */
+.toggle-active-message {
+  text-align: center;
+  font-size: 16px;
+  margin-bottom: 15px;
+  text-shadow: 0 0 5px var(--text-color);
+}
+
+/* Responsive Shop */
 @media (max-width: 1200px) {
   .resupply-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1982,4 +2204,124 @@
   border-top: 1px solid var(--text-color);
   padding-top: 10px;
   margin-top: 10px;
+}
+
+/* ==================== VOTING STYLES ==================== */
+
+/* Voting Period Banner */
+.voting-banner-text {
+  margin: 20px auto;
+  max-width: 1200px;
+  font-size: 14px;
+  padding: 15px;
+  border: 2px dotted var(--text-color);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 0 10px var(--text-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.voting-banner-left {
+  text-align: left;
+}
+
+.voting-banner-right {
+  text-align: right;
+  margin-left: 20px;
+}
+
+/* Job Card Voting Styles */
+.job-card-clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.job-card-clickable:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.job-votes {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.vote-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  filter: invert(1);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Voting Modal Styles */
+.voting-instruction {
+  font-size: 14px;
+  margin-bottom: 15px;
+  opacity: 0.9;
+}
+
+.vote-warning {
+  margin-top: 15px;
+  padding: 10px;
+  border: 2px solid var(--text-color);
+  background-color: rgba(255, 0, 0, 0.1);
+  color: var(--text-color);
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.pilots-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 2px solid var(--border-color);
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.pilot-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--card-bg);
+}
+
+.pilot-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.pilot-item.selected {
+  border-color: var(--text-color);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.pilot-item.pilot-inactive {
+  opacity: 0.5;
+}
+
+.pilot-ll {
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 40px;
+}
+
+.pilot-name {
+  flex: 1;
+  font-size: 14px;
+}
+
+.pilot-callsign {
+  font-size: 12px;
+  opacity: 0.8;
 }

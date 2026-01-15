@@ -1,10 +1,10 @@
 {
-  "name": "lancer-bloodmoney-merc-board",
+  "name": "lancer-rpg-job-board",
   "version": "1.0.0",
   "description": "A terminal-styled job board for LANCER RPG with admin and client interfaces",
   "main": "server.js",
   "bin": {
-    "lancer-bloodmoney-merc-board": "server.js"
+    "lancer-rpg-job-board": "server.js"
   },
   "scripts": {
     "start": "node server.js",

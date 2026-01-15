@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/voting-periods.schema.json",
+  "title": "Voting Periods Container",
+  "description": "Container for all voting periods (Ongoing and Archived). Stored in data/voting-periods.json",
+  "type": "object",
+  "required": ["periods"],
+  "properties": {
+    "periods": {
+      "type": "array",
+      "description": "Array of voting period objects. Only one may have state 'Ongoing' at a time.",
+      "items": {
+        "$ref": "voting-period.schema.json"
+      }
+    }
+  },
+  "additionalProperties": false
+}

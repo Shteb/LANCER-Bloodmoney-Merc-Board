@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LANCER Job Board - Procurement</title>
+  <title>LANCER Job Board - Shop</title>
   <link rel="stylesheet" href="/css/terminal.css">
   <link rel="stylesheet" href="/css/currency.css">
   <link rel="stylesheet" href="/css/client.css">
@@ -32,7 +32,7 @@
     </div>
   </div>
   
-  <div class="procurement-container" id="procurement-container">
+  <div class="shop-container" id="shop-container">
     <!-- Resupply Items Section -->
     <% if (resupplyItems.some(item => item.enabled)) { %>
     <div class="resupply-section">
@@ -42,7 +42,7 @@
           <div class="reserve-card resupply-card" data-resupply-id="<%= item.id %>" data-item-type="resupply">
             <div class="reserve-card-header">
               <div class="reserve-rank">R0</div>
-              <div class="reserve-name"><%= item.name %></div>
+              <div class="reserve-name"><%= item.name.toUpperCase() %></div>
             </div>
             <div class="reserve-description">
               <% if (item.id === 'limited-restock') { %>
@@ -55,7 +55,7 @@
             </div>
             <div class="reserve-price">
               <%= item.price %>
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             </div>
           </div>
         <% }); %>
@@ -92,7 +92,7 @@
               </div>
               <div class="reserve-price">
                 <%= reserve.price %>
-                <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
               </div>
             </div>
           <% }); %>
@@ -121,7 +121,7 @@
             <h4>> TRANSACTION_PER_PILOT:</h4>
             <div class="transaction-amount" id="transaction-amount">
               <span id="amount-per-pilot">0</span>
-              <img src="/css/images/manna_symbol.svg" alt="Currency Icon" class="currency-icon">
+              <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
             </div>
             <div class="warning-message" id="warning-message" style="display: none;"></div>
           </div>
@@ -155,6 +155,12 @@
   </div>
   
   <script src="/js/shared-handlers.js"></script>
+  <script>
+    // Initialize currency icon from server settings
+    if (typeof currentCurrencyIcon !== 'undefined') {
+      currentCurrencyIcon = '<%= settings.currencyIcon || "manna_symbol.svg" %>';
+    }
+  </script>
   <script src="/js/sse-client.js"></script>
   <script>
     // Store current state
@@ -242,7 +248,7 @@
       const safePriceText = Number.isFinite(priceNumber) ? String(priceNumber) : '';
       priceDiv.textContent = safePriceText ? safePriceText + ' ' : '';
       const currencyIcon = document.createElement('img');
-      currencyIcon.src = '/css/images/manna_symbol.svg';
+      currencyIcon.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
       currencyIcon.alt = 'Currency Icon';
       currencyIcon.className = 'currency-icon';
       priceDiv.appendChild(currencyIcon);
@@ -326,7 +332,7 @@
         pilotBalance.className = 'pilot-balance';
         pilotBalance.textContent = `${pilot.balance} `;
         const currencyIcon = document.createElement('img');
-        currencyIcon.src = '/css/images/manna_symbol.svg';
+        currencyIcon.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
         currencyIcon.alt = 'Currency Icon';
         currencyIcon.className = 'currency-icon';
         pilotBalance.appendChild(currencyIcon);
@@ -495,7 +501,7 @@
       const expensePilots = Array.from(selectedExpensePilots);
       
       try {
-        const response = await fetch('/api/procurement/purchase', {
+        const response = await fetch('/api/shop/purchase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -565,9 +571,9 @@
      * Initialize event delegation for card clicks
      */
     function initializeEventDelegation() {
-      const procurementContainer = document.getElementById('procurement-container');
+      const shopContainer = document.getElementById('shop-container');
       
-      procurementContainer.addEventListener('click', (e) => {
+      shopContainer.addEventListener('click', (e) => {
         const card = e.target.closest('.reserve-card');
         if (!card) return;
         

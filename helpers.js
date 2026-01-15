@@ -1,5 +1,5 @@
 /**
- * Helper functions for the LANCER Bloodmoney Merc Board application
+ * Helper functions for the LANCER RPG Job Board application
  */
 
 const crypto = require('crypto');
@@ -15,6 +15,8 @@ const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 const SAFE_EMBLEM_PATTERN = /^[A-Za-z0-9_-]+\.svg$/;
 const JOB_STATES = ['Pending', 'Active', 'Complete', 'Failed', 'Ignored'];
 const DEFAULT_JOB_STATE = 'Pending';
+const VOTING_PERIOD_STATES = ['Ongoing', 'Archived'];
+const DEFAULT_VOTING_PERIOD_STATE = 'Ongoing';
 
 /**
  * Get the label for a faction standing level (0-4)
@@ -902,6 +904,156 @@ function applyFacilityCostModifier(basePrice, modifier) {
   return Math.round(modifiedPrice / 50) * 50;
 }
 
+/**
+ * Validate voting period state
+ * @param {string} state - Voting period state to validate
+ * @returns {Object} { valid: boolean, message?: string }
+ */
+function validateVotingPeriodState(state) {
+  if (!state || typeof state !== 'string') {
+    return { valid: false, message: 'Voting period state is required' };
+  }
+  
+  if (!VOTING_PERIOD_STATES.includes(state)) {
+    return { 
+      valid: false, 
+      message: `Invalid voting period state. Must be one of: ${VOTING_PERIOD_STATES.join(', ')}` 
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validate job votes array
+ * @param {Array} jobVotes - Array of job vote objects
+ * @param {Array} jobs - Array of job objects (optional, for UUID validation)
+ * @returns {Object} { valid: boolean, message?: string }
+ */
+function validateJobVotes(jobVotes, jobs = null) {
+  if (!Array.isArray(jobVotes)) {
+    return { valid: false, message: 'jobVotes must be an array' };
+  }
+  
+  // Track pilot UUIDs to ensure no duplicates across jobs
+  const seenPilotIds = new Set();
+  
+  for (let i = 0; i < jobVotes.length; i++) {
+    const jobVote = jobVotes[i];
+    
+    // Validate jobId
+    if (!jobVote.jobId || typeof jobVote.jobId !== 'string') {
+      return { valid: false, message: `jobVotes[${i}]: jobId is required and must be a string` };
+    }
+    
+    // Validate job exists and is Active state (if jobs array provided)
+    if (jobs && Array.isArray(jobs)) {
+      const job = jobs.find(j => j.id === jobVote.jobId);
+      if (!job) {
+        return { valid: false, message: `jobVotes[${i}]: Job with id ${jobVote.jobId} not found` };
+      }
+      if (job.state !== 'Active') {
+        return { valid: false, message: `jobVotes[${i}]: Only Active jobs can be included in voting periods (job "${job.name}" is ${job.state})` };
+      }
+    }
+    
+    // Validate votes array
+    if (!Array.isArray(jobVote.votes)) {
+      return { valid: false, message: `jobVotes[${i}]: votes must be an array` };
+    }
+    
+    // Check for pilot UUID duplicates within this voting period
+    for (const pilotId of jobVote.votes) {
+      if (typeof pilotId !== 'string' || !pilotId) {
+        return { valid: false, message: `jobVotes[${i}]: All votes must be non-empty strings` };
+      }
+      
+      if (seenPilotIds.has(pilotId)) {
+        return { 
+          valid: false, 
+          message: `Pilot ${pilotId} appears in multiple job vote lists. Each pilot may only vote for one job per voting period.` 
+        };
+      }
+      
+      seenPilotIds.add(pilotId);
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validate end time (nullable ISO date-time string)
+ * @param {string|null} endTime - End time to validate
+ * @returns {Object} { valid: boolean, message?: string }
+ */
+function validateEndTime(endTime) {
+  // Null is allowed (infinite duration)
+  if (endTime === null) {
+    return { valid: true };
+  }
+  
+  // If provided, must be a string
+  if (typeof endTime !== 'string') {
+    return { valid: false, message: 'endTime must be a string (ISO 8601 date-time) or null' };
+  }
+  
+  // Validate ISO 8601 date-time format
+  const date = new Date(endTime);
+  if (isNaN(date.getTime())) {
+    return { valid: false, message: 'endTime must be a valid ISO 8601 date-time string or null' };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validate complete voting period data
+ * @param {Object} votingPeriodData - Voting period data to validate
+ * @param {Array} jobs - Optional array of job objects for validation
+ * @param {Array} pilots - Optional array of pilot objects for validation
+ * @returns {Object} { valid: boolean, state, jobVotes, endTime, message? }
+ */
+function validateVotingPeriodData(votingPeriodData, jobs = null, pilots = null) {
+  // Validate state
+  const stateValidation = validateVotingPeriodState(votingPeriodData.state);
+  if (!stateValidation.valid) {
+    return stateValidation;
+  }
+  
+  // Validate jobVotes
+  const jobVotesValidation = validateJobVotes(votingPeriodData.jobVotes, jobs);
+  if (!jobVotesValidation.valid) {
+    return jobVotesValidation;
+  }
+  
+  // Validate endTime
+  const endTimeValidation = validateEndTime(votingPeriodData.endTime);
+  if (!endTimeValidation.valid) {
+    return endTimeValidation;
+  }
+  
+  return {
+    valid: true,
+    state: votingPeriodData.state,
+    jobVotes: votingPeriodData.jobVotes,
+    endTime: votingPeriodData.endTime
+  };
+}
+
+/**
+ * Check if there is already an ongoing voting period
+ * @param {Array} votingPeriods - Array of voting period objects
+ * @returns {Object|null} Ongoing voting period or null if none exists
+ */
+function getOngoingVotingPeriod(votingPeriods) {
+  if (!Array.isArray(votingPeriods)) {
+    return null;
+  }
+  
+  return votingPeriods.find(period => period.state === 'Ongoing') || null;
+}
+
 module.exports = {
   // Constants
   STANDING_LABELS,
@@ -910,6 +1062,8 @@ module.exports = {
   SAFE_EMBLEM_PATTERN,
   JOB_STATES,
   DEFAULT_JOB_STATE,
+  VOTING_PERIOD_STATES,
+  DEFAULT_VOTING_PERIOD_STATE,
   
   // Functions
   getStandingLabel,
@@ -942,6 +1096,11 @@ module.exports = {
   validateCoreMajorFacility,
   validateMinorFacilitySlot,
   applyFacilityCostModifier,
+  validateVotingPeriodState,
+  validateJobVotes,
+  validateEndTime,
+  validateVotingPeriodData,
+  getOngoingVotingPeriod,
   successResponse,
   errorResponse
 };

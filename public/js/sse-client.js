@@ -96,6 +96,14 @@ function initSSE() {
     }
   });
   
+  // Handle voting-periods updates
+  eventSource.addEventListener('voting-periods', (e) => {
+    const data = JSON.parse(e.data);
+    if (typeof handleVotingPeriodsUpdate === 'function') {
+      handleVotingPeriodsUpdate(data);
+    }
+  });
+  
   // Handle errors
   eventSource.onerror = (err) => {
     console.error('SSE error:', err);
