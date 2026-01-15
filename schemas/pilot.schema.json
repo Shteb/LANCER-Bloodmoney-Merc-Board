@@ -79,6 +79,10 @@
         },
         "additionalProperties": false
       }
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only notes (optional)"
     }
   },
   "additionalProperties": false,

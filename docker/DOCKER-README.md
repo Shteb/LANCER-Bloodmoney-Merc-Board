@@ -17,7 +17,7 @@ Bound the held image in the Docker Protocol to achieve shape. Beware: it does no
      ```
    or in a cloud hosting service like Render or Google Cloud, access the latest published image from gcrh.io:
       ```
-      ghcr.io/e-lupo/lancer-bloodmoney-merc-board:latest
+      ghcr.io/shteb/lancer-bloodmoney-merc-board:latest
       ``` 
    You can then (usually) configure the env variables over the server´s UI, without needing to create a new image. 
 

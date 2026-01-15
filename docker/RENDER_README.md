@@ -41,7 +41,7 @@ This guide will help you deploy the Lancer Bloodmoney Merc Board to Render's fre
 3. Select **"Deploy an existing image from a registry"**
 4. Input the URL to the latest image:
    ```
-   ghcr.io/e-lupo/lancer-bloodmoney-merc-board:latest
+   ghcr.io/shteb/lancer-bloodmoney-merc-board:latest
    ```
 5. Click **"Create Web Service"**
 6. Wait for deployment to complete

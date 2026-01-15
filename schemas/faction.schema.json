@@ -50,6 +50,10 @@
       "type": "number",
       "description": "Integer offset for failed job count",
       "multipleOf": 1
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only notes (optional)"
     }
   },
   "additionalProperties": false,

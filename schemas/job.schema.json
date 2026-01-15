@@ -76,6 +76,10 @@
       "type": "string",
       "description": "UUID of associated faction (optional, empty string if none)",
       "pattern": "^(|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only notes (optional)"
     }
   },
   "additionalProperties": false

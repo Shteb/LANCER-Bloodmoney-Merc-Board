@@ -3,7 +3,7 @@
 
 services:
   blood-money-board-app:
-    image: ghcr.io/e-lupo/lancer-bloodmoney-merc-board:latest
+    image: ghcr.io/shteb/lancer-bloodmoney-merc-board:latest
     # To use a specific version, replace 'latest' with a version tag like 'v1.0.0'
     ports:
       - "${PORT:-3000}:${PORT:-3000}"

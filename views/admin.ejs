@@ -1059,6 +1059,11 @@
       </div>
       
       <div class="form-group">
+        <label for="jobAdminLog">Admin Log</label>
+        <textarea id="jobAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this job"></textarea>
+      </div>
+      
+      <div class="form-group">
         <label for="jobEmblem">Emblem</label>
         <input type="hidden" id="jobEmblem" name="emblem" value="">
         <div class="emblem-grid" id="emblemGrid">
@@ -1171,6 +1176,9 @@
           <% if (job.additionalPay) { %>
             <div class="job-item-field"><strong>Additional Pay:</strong> <%= job.additionalPay %></div>
           <% } %>
+          <% if (job.adminLog) { %>
+            <div class="job-item-field"><strong>Admin Log:</strong> <%= job.adminLog %></div>
+          <% } %>
           <% if (job.emblem) { %>
             <div class="job-item-field">
               <strong>Emblem:</strong> <%= job.emblem %>
@@ -1263,7 +1271,12 @@
           <label for="editJobAdditionalPay">Additional Pay</label>
           <input type="text" id="editJobAdditionalPay" name="additionalPay">
         </div>
-        
+
+        <div class="form-group">
+          <label for="editJobAdminLog">Admin Log</label>
+          <textarea id="editJobAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this job"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="editJobEmblem">Emblem</label>
           <input type="hidden" id="editJobEmblem" name="emblem" value="">
@@ -1473,7 +1486,12 @@
           <label for="pilotNotes">Notes (multiline)</label>
           <textarea id="pilotNotes" name="notes" rows="4" placeholder="Optional"></textarea>
         </div>
-        
+
+        <div class="form-group">
+          <label for="pilotAdminLog">Admin Log</label>
+          <textarea id="pilotAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this pilot"></textarea>
+        </div>
+
         <div class="form-group" id="addPilotPersonalOperationProgressGroup" style="display: <%= settings.openTable ? 'block' : 'none' %>">
           <label for="pilotPersonalOperationProgress">Personal Operation Progress</label>
           <select id="pilotPersonalOperationProgress" name="personalOperationProgress">
@@ -1520,6 +1538,9 @@
               </div>
               <% if (pilot.notes) { %>
                 <div class="job-item-field"><strong>Notes:</strong><br><pre style="margin: 5px 0; font-family: inherit; white-space: pre-wrap;"><%= pilot.notes %></pre></div>
+              <% } %>
+              <% if (pilot.adminLog) { %>
+                <div class="job-item-field"><strong>Admin Log:</strong> <%= pilot.adminLog %></div>
               <% } %>
               <div class="job-item-field">
                 <strong>Related Jobs:</strong> <%= (pilot.relatedJobs || []).length %> job(s)
@@ -1576,7 +1597,12 @@
           <label for="factionJobsFailedOffset">Jobs Failed Offset (This number is added to the failed jobs count)</label>
           <input type="number" id="factionJobsFailedOffset" name="jobsFailedOffset" value="0" required>
         </div>
-        
+
+        <div class="form-group">
+          <label for="factionAdminLog">Admin Log</label>
+          <textarea id="factionAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this faction"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="factionEmblem">Emblem</label>
           <input type="hidden" id="factionEmblem" name="emblem" value="">
@@ -1591,7 +1617,7 @@
             <% }); %>
           </div>
         </div>
-        
+
         <button type="submit" class="btn btn-primary btn-add-job">Add Faction</button>
       </form>
     </div>
@@ -1611,6 +1637,9 @@
               <div class="faction-item-field"><strong>Jobs Completed:</strong> <%= faction.jobsCompleted || 0 %> (Offset: <%= faction.jobsCompletedOffset || 0 %>)</div>
               <div class="faction-item-field"><strong>Jobs Failed:</strong> <%= faction.jobsFailed || 0 %> (Offset: <%= faction.jobsFailedOffset || 0 %>)</div>
               <div class="faction-item-field"><strong>Brief:</strong> <%= faction.brief %></div>
+              <% if (faction.adminLog) { %>
+              <div class="faction-item-field"><strong>Admin Log:</strong> <%= faction.adminLog %></div>
+              <% } %>
               <% if (faction.emblem) { %>
                 <div class="faction-item-field">
                   <strong>Emblem:</strong> <%= faction.emblem %>
@@ -1669,7 +1698,12 @@
           <label for="editFactionJobsFailedOffset">Jobs Failed Offset (calculated from jobs + this offset)</label>
           <input type="number" id="editFactionJobsFailedOffset" name="jobsFailedOffset" required>
         </div>
-        
+
+        <div class="form-group">
+          <label for="editFactionAdminLog">Admin Log</label>
+          <textarea id="editFactionAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this faction"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="editFactionEmblem">Emblem</label>
           <input type="hidden" id="editFactionEmblem" name="emblem" value="">
@@ -1781,6 +1815,11 @@
         <div class="form-group">
           <label for="editPilotNotes">Notes (multiline)</label>
           <textarea id="editPilotNotes" name="notes" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editPilotAdminLog">Admin Log</label>
+          <textarea id="editPilotAdminLog" name="adminLog" placeholder="GM Only notes for this pilot" rows="4"></textarea>
         </div>
         
         <div class="form-group" id="editPilotPersonalOperationProgressGroup" style="display: <%= settings.openTable ? 'block' : 'none' %>">
@@ -2057,6 +2096,9 @@
               <% if (reserve.description) { %>
                 <div class="job-item-field"><strong>Description:</strong><br><%= reserve.description %></div>
               <% } %>
+              <% if (reserve.adminLog) { %>
+                <div class="job-item-field"><strong>Admin Log:</strong> <%= reserve.adminLog %></div>
+              <% } %>
             </div>
           <% }); %>
         <% } %>
@@ -2119,6 +2161,9 @@
               <div class="job-item-field"><strong>Description:</strong><br><%= reserve.description %></div>
             <% } %>
             <div class="job-item-field"><strong>Type:</strong> <%= reserve.isCustom ? 'Custom' : 'Default' %></div>
+            <% if (reserve.adminLog) { %>
+              <div class="job-item-field"><strong>Admin Log:</strong><br><%= reserve.adminLog %></div>
+            <% } %>
           </div>
         <% }); %>
       </div>
@@ -2151,12 +2196,17 @@
           <label for="createReservePrice">Price</label>
           <input type="number" id="createReservePrice" name="price" min="0" value="0" required>
         </div>
-        
+    
         <div class="form-group">
           <label for="createReserveDescription">Description</label>
           <textarea id="createReserveDescription" name="description" rows="4" placeholder="Text before your first [enter] input will be bolded."></textarea>
         </div>
-        
+
+        <div class="form-group">
+          <label for="createReserveAdminLog">Admin Log</label>
+          <textarea id="createReserveAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this reserve"></textarea>
+        </div>
+
         <button type="submit" class="btn btn-primary">Create Reserve</button>
       </form>
     </div>
@@ -2195,7 +2245,12 @@
           <label for="editReserveDescription">Description</label>
           <textarea id="editReserveDescription" name="description" rows="4"></textarea>
         </div>
-        
+
+        <div class="form-group">
+          <label for="editReserveAdminLog">Admin Log</label>
+          <textarea id="editReserveAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this reserve"></textarea>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save Changes</button>
       </form>
     </div>
@@ -3720,6 +3775,7 @@
       document.getElementById('editJobClientBrief').value = jobData.clientBrief;
       document.getElementById('editJobCurrencyPay').value = jobData.currencyPay;
       document.getElementById('editJobAdditionalPay').value = jobData.additionalPay || '';
+      document.getElementById('editJobAdminLog').value = jobData.adminLog || '';
       document.getElementById('editJobEmblem').value = jobData.emblem || '';
       
       // Select the correct emblem in the grid
@@ -4208,6 +4264,7 @@
       document.getElementById('editFactionStanding').value = factionData.standing;
       document.getElementById('editFactionJobsCompletedOffset').value = factionData.jobsCompletedOffset || 0;
       document.getElementById('editFactionJobsFailedOffset').value = factionData.jobsFailedOffset || 0;
+      document.getElementById('editFactionAdminLog').value = factionData.adminLog || '';
       document.getElementById('editFactionEmblem').value = factionData.emblem || '';
       
       // Select the correct emblem in the grid
@@ -4415,6 +4472,7 @@
       document.getElementById('editPilotCallsign').value = pilotData.callsign;
       document.getElementById('editPilotLL').value = pilotData.ll;
       document.getElementById('editPilotNotes').value = pilotData.notes || '';
+      document.getElementById('editPilotAdminLog').value = pilotData.adminLog || '';
       document.getElementById('editPilotActive').checked = pilotData.active;
       
       // Set personalOperationProgress if the field exists (when openTable is ON)
@@ -5696,7 +5754,8 @@
               rank: parseInt(data.rank),
               name: data.name,
               price: parseInt(data.price),
-              description: data.description || ''
+              description: data.description || '',
+              adminLog: data.adminLog || ''
             })
           });
           
@@ -5737,6 +5796,7 @@
         document.getElementById('editReserveName').value = reserve.name;
         document.getElementById('editReservePrice').value = reserve.price;
         document.getElementById('editReserveDescription').value = reserve.description || '';
+        document.getElementById('editReserveAdminLog').value = reserve.adminLog || '';
         
         document.getElementById('editReserveModal').style.display = 'block';
       } catch (error) {
@@ -5763,7 +5823,8 @@
               rank: parseInt(data.rank),
               name: data.name,
               price: parseInt(data.price),
-              description: data.description || ''
+              description: data.description || '',
+              adminLog: data.adminLog || ''
             })
           });
           

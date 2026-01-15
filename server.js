@@ -1630,6 +1630,7 @@ app.post('/api/jobs', requireAdminAuth, (req, res) => {
     clientBrief: req.body.clientBrief,
     currencyPay: req.body.currencyPay,
     additionalPay: req.body.additionalPay,
+    adminLog: req.body.adminLog || '',
     emblem: validation.emblem,
     state: validation.state,
     factionId: validation.factionId
@@ -1671,6 +1672,7 @@ app.put('/api/jobs/:id', requireAdminAuth, async (req, res) => {
     clientBrief: req.body.clientBrief,
     currencyPay: req.body.currencyPay,
     additionalPay: req.body.additionalPay,
+    adminLog: req.body.adminLog || '',
     emblem: validation.emblem,
     state: validation.state,
     factionId: validation.factionId
@@ -1867,6 +1869,7 @@ app.post('/api/reserves', requireAdminAuth, (req, res) => {
     name: validation.name,
     price: validation.price,
     description: validation.description,
+    adminLog: req.body.adminLog || '',
     isCustom: true // All reserves created via admin are custom
   };
   
@@ -1900,7 +1903,8 @@ app.put('/api/reserves/:id', requireAdminAuth, (req, res) => {
     name: validation.name,
     price: validation.price,
     description: validation.description,
-    isCustom: reserves[index].isCustom
+    isCustom: reserves[index].isCustom,
+    adminLog: req.body.adminLog || ''
   };
   
   writeReserves(reserves);
@@ -3643,7 +3647,8 @@ app.post('/api/factions', requireAdminAuth, (req, res) => {
     brief: validation.brief,
     standing: validation.standing,
     jobsCompletedOffset: validation.jobsCompletedOffset,
-    jobsFailedOffset: validation.jobsFailedOffset
+    jobsFailedOffset: validation.jobsFailedOffset,
+    adminLog: req.body.adminLog || ''
   };
   factions.push(newFaction);
   writeFactions(factions);
@@ -3680,7 +3685,8 @@ app.put('/api/factions/:id', requireAdminAuth, (req, res) => {
     brief: validation.brief,
     standing: validation.standing,
     jobsCompletedOffset: validation.jobsCompletedOffset,
-    jobsFailedOffset: validation.jobsFailedOffset
+    jobsFailedOffset: validation.jobsFailedOffset,
+    adminLog: req.body.adminLog || ''
   };
   writeFactions(factions);
   
@@ -3738,7 +3744,8 @@ app.post('/api/pilots', requireAdminAuth, (req, res) => {
     relatedJobs: [],
     personalOperationProgress: validation.personalOperationProgress,
     personalTransactions: validation.personalTransactions,
-    reserves: validation.reserves
+    reserves: validation.reserves,
+    adminLog: req.body.adminLog || ''
   };
   pilots.push(newPilot);
   writePilots(pilots);
@@ -3781,7 +3788,8 @@ app.put('/api/pilots/:id', requireAdminAuth, (req, res) => {
     relatedJobs: validation.relatedJobs,
     personalOperationProgress: validation.personalOperationProgress,
     personalTransactions: validation.personalTransactions,
-    reserves: validation.reserves
+    reserves: validation.reserves,
+    adminLog: req.body.adminLog || ''
   };
   writePilots(pilots);
   

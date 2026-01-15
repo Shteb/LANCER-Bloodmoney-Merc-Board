@@ -36,6 +36,10 @@
     "isCustom": {
       "type": "boolean",
       "description": "Whether this is a custom item (true) or default/legacy item (false)"
+    },
+    "adminLog": {
+      "type": "string",
+      "description": "GM-only notes (optional)"
     }
   },
   "additionalProperties": false,
