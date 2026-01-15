@@ -2,9 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lancer-job-board.local/schemas/job.schema.json",
   "title": "Job",
-  "description": "A job posting in the LANCER RPG Job Board system",
+  "description": "A job posting in the LANCER Bloodmoney Merc Board system",
   "type": "object",
-  "required": ["id", "name", "rank", "jobType", "description", "clientBrief", "currencyPay", "state", "factionId"],
+  "required": [
+    "id",
+    "name",
+    "rank",
+    "jobType",
+    "description",
+    "clientBrief",
+    "currencyPay",
+    "state",
+    "factionId"
+  ],
   "properties": {
     "id": {
       "type": "string",
@@ -53,7 +63,13 @@
     "state": {
       "type": "string",
       "description": "Job state",
-      "enum": ["Pending", "Active", "Complete", "Failed", "Ignored"],
+      "enum": [
+        "Pending",
+        "Active",
+        "Complete",
+        "Failed",
+        "Ignored"
+      ],
       "default": "Pending"
     },
     "factionId": {

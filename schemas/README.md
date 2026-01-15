@@ -1,6 +1,6 @@
-# LANCER RPG Job Board - Data Schemas
+# LANCER Bloodmoney Merc Board - Data Schemas
 
-This directory contains JSON Schema definitions for all data structures used in the LANCER RPG Job Board application.
+This directory contains JSON Schema definitions for all data structures used in the LANCER Bloodmoney Merc Board application.
 
 ## Schema Files
 

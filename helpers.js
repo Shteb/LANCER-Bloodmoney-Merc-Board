@@ -1,5 +1,5 @@
 /**
- * Helper functions for the LANCER RPG Job Board application
+ * Helper functions for the LANCER Bloodmoney Merc Job Board application
  */
 
 const crypto = require('crypto');
