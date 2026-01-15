@@ -2,7 +2,6 @@
 
 A terminal-styled web application for managing LANCER RPG missions and your mercenary company. Features password-protected access with separate client and admin interfaces for managing jobs, base modules, factions, pilots, and currency (Manna).
 
-
 ## How to Run Locally
 ### __The Normal Way__
 1. Go to [releases](https://github.com/Shteb/LANCER-Bloodmoney-Merc-Board/releases) on the right and download the latest `Lancer_Bloodmoney_Companion_X.X.X.zip`.
@@ -43,7 +42,9 @@ A terminal-styled web application for managing LANCER RPG missions and your merc
    - **ADMIN Mode**: Enter `TARASQUE` (full management access)
 
 ## Updating
-At the same folder level you ran `npm install`, now run `git pull`.
+For most people, download the latest release and transfer your `data` folder over to the new version.
+
+For those using git, at the same folder level you ran `npm install`, now run `git pull`.
 
 ### Login
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />
