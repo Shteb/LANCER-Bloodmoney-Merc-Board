@@ -55,6 +55,10 @@ For those using git, at the same folder level you ran `npm install`, now run `gi
 ### Job Board page
 <img width="1280" height="844" alt="image" src="https://github.com/user-attachments/assets/b373b4fe-70bd-409d-baf9-08fcf0b6e840" />
 
+#### Job Voting
+
+https://github.com/user-attachments/assets/75517555-a781-4573-8c30-51fdc4244456
+
 ### Base Management
 <img width="1257" height="1203" alt="image" src="https://github.com/user-attachments/assets/b99e4715-a075-4cf3-b48b-52589bf0e8f6" />
 
