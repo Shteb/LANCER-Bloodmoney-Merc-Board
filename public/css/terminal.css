@@ -267,6 +267,7 @@ body.blue .job-details-emblem img {
   color: var(--text-color);
   padding-left: 10px;
   font-size: 14px;
+  white-space: pre-wrap;
 }
 
 .field-value--payment {
