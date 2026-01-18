@@ -1,23 +1,52 @@
-# Deploying to Render
+# Hosting the Dashboard as a public website
 
-This guide will help you deploy the Lancer Bloodmoney Merc Board to Render's free tier and keep it awake. No port forwarding needed - the app will live on the web.
+This guide will help you deploy the Lancer Bloodmoney Merc Board to as a public website. 
+This means you don´t need to setup port forwarding - the app will live on the web and be accessible by anybody with the page´s url. 
 
----
+## Hosting your webapp for free?
+A little disclaimer. 
+There are many services out there for hosting web apps offering hosting for free. These usually have limitations, like keeping your app awake only for so long at a time or not offering permanent storage. The dashboard saves settings and emblems to disk, so in most situations if the app restarts it will revert to the default settings and your jobs / pilots / embles etc will be lost.  
 
-## Deployment Options
-
-### Option 1: Deploy with Blueprint (Easiest)
-
-1. Go to [Render Dashboard](https://dashboard.render.com/)
-2. Click **"New +"** → **"Blueprint"**
-3. Connect this repository using the **"Public Git Repository"** option
-4. Give a unique name to your blueprint
-5. Render will detect the `render.yaml` Blueprint and deploy the app
-6. Wait a bit and that's it! Your app will be live at your own URL (like `https://your-service-name.onrender.com`)
+The specifics will differ from service provider to service provider, and the exact conditions of each service´s free tier is also bound to change with time - this guide describes two different options, Azure and Render, and how they work at the time of this writing. 
 
 ---
 
-### Option 2: Deploy from GitHub
+## Hosting on Azure
+
+Azure offers an App Hosting service with a free plan and some persistent storage option. To do so you need to setup a free trial account, for which you nevertheless need to provide a credit card. 
+
+### Option 1: Deploy from Github
+
+1. Go to [Azure portal](portal.azure.com)
+2. Click **"Create a resource"** → **"Web App"**
+3. Configure:
+   - under Instance Details:
+      - **Name**: Choose a name for the app
+      - **Publish**: Code
+      - **Runtime stack**: Node 24 LTS
+      - **Pricing plan**: Free F1
+4. Click **Review + create**, then **Create** and wait for the resource to be created.
+5. Wait for **"Deployment is in progress"** to become **✅ Your Deployment is complete**
+6. Click **Go to resource**
+7. In the left taskbar, click on **Settings** -> **Configuration**
+   - **SCM Basic Auth Publishing Credentials** -> check
+8. Click **Apply**
+9. In the left taskbar, click on **Deployment** -> **Deployment Center**
+   - **Source**: External Git
+   - **Repository**: paste the URL to this repo
+   - **Branch**: type main
+   - **Repository type**: Public
+10. In the toolbar on top, Click **Save** 
+11. Wait for deployment to complete.
+12. Your app is now live at `https://your-app-name.azurewebsites.net`
+
+To update the app to a new version, you need to head to the Developer Center and click the "sync" button. 
+
+## Hosting on Render.com
+
+Hosting on Render is really straightforward, comparing to Azure. Unfortunately, the free tier doesn´t offer storage, so if the app goes to sleep or restart for any reason, all your settings are gone. It´s a good option if you just want to test, or if you are willing to go for one of the paid plans. 
+
+### Option 1: Deploy from GitHub
 
 1. Go to [Render Dashboard](https://dashboard.render.com/)
 2. Click **"New +"** → **"Web Service"**
@@ -34,7 +63,7 @@ This guide will help you deploy the Lancer Bloodmoney Merc Board to Render's fre
 
 ---
 
-### Option 3: Deploy from Docker Image
+### Option 2: Deploy from Docker Image
 
 1. Go to [Render Dashboard](https://dashboard.render.com/)
 2. Click **"New +"** → **"Web Service"**
