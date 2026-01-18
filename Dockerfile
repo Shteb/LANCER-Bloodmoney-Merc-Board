@@ -21,7 +21,7 @@ COPY --chown=nodejs:nodejs . .
 # Create data directory with proper permissions
 RUN cp -r /app/logo_art /app/logo_art_defaults && \
     mkdir -p /app/data /app/logo_art  && \
-    chown -R nodejs:nodejs /app/data /app/logo_art
+    chown -R nodejs:nodejs /app/data /app/logo_art /app/logo_art_defaults
 
 # Create entrypoint script - avoid issues with volume shadow mounting
 RUN echo '#!/bin/sh' > /entrypoint.sh && \
