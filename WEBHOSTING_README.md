@@ -72,6 +72,15 @@ This option will automatically update your app to the newest version, but requir
 22. Click on the **"Browse"** button, just above the **"main"** entry in the list. This will trigger the initial deployment of the app. Wait for it to complete.
 23. Your app is now live at `https://your-app-name.azurewebsites.net`, or the longer url if you checked **"Try a secure unique default hostname."** earlier.
 
+### Downloading or Uploading existing data from your Azure service
+If you have existing data form a local installation, or would like to backup data on your Web Hosted app, do the following:
+1. Navigate to you [**Azure portal dashboard**](https://portal.azure.com/#home).
+2. Under **"Resources"**, click your App Service, usually called {your-app-name}.
+3. In the left panel, go **"Development Tools"** -> **"Advanced Tools"**.
+4. Click **"Go->"**. This will open a new tab.
+5. Click on **"Try it now"** at the top to go to the New UI.
+6. Click **"File Manager"** on the left panel.
+7. You are now on the **File Manager**. The data for the application is stored in the `app` folder. Feel free to download or upload data here as you need.
 
 ### Option 2: Deploy from Github
 This is the option with the smallest amount of configuration needed. It consumes quite more space on hard drive than the Docker option, and it requires manual updating whenever the app releases a new version
