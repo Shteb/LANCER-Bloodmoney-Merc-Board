@@ -47,13 +47,13 @@ This option will automatically update your app to the newest version, but requir
 13. Click **Go to resource**.
 14. In the left taskbar, click on **Settings** -> **Environmnetal Variables**.
    - Click **"WEBSITES_ENABLE_APP_SERVICE_STORAGE"** -> reveal field, then set "true" instead of the default "false".
-11. Click **Apply**, then **Apply** again at the bottom and confirm.
-12. In the left taskbar, click on **Settings** -> **Configuration**.
+15. Click **Apply**, then **Apply** again at the bottom and confirm.
+16. In the left taskbar, click on **Settings** -> **Configuration**.
    - **SCM Basic Auth Publishing Credentials** -> check.
-11. Click **Apply**.
-12. In the left taskbar, click on **Deployment** -> **Deployment Center**.
+17. Click **Apply**.
+18. In the left taskbar, click on **Deployment** -> **Deployment Center**.
    - If it shows a message with an option that mentions **"upgrade to sidecar container"**, click to upgrade. No worries if this doesn't appear.
-13. Click on **"main"** in the container list and configure:
+19. Click on **"main"** in the container list and configure:
    - **Image Source**: Other container registry
    - **Image Type**: public
    - **Registry Server URL**: ghcr.io
@@ -65,10 +65,10 @@ This option will automatically update your app to the newest version, but requir
       | Volume sub path | Container mount path |
       | /home/app/data | /app/data |
       | /home/app/logo_art | /app/logo_art |
-13. Click **Apply** 
-14. Check the **"Continuous deployment for the main container"** checkbox near the top, then **"Apply"**.
-15. Click on the **"Browse"** button, just above the **"main"** entry in the list. This will trigger the initial deployment of the app. Wait for it to complete.
-16. Your app is now live at `https://your-app-name.azurewebsites.net`, or the longer url if you checked **"Try a secure unique default hostname."** earlier.
+20. Click **Apply** 
+21. Check the **"Continuous deployment for the main container"** checkbox near the top, then **"Apply"**.
+22. Click on the **"Browse"** button, just above the **"main"** entry in the list. This will trigger the initial deployment of the app. Wait for it to complete.
+23. Your app is now live at `https://your-app-name.azurewebsites.net`, or the longer url if you checked **"Try a secure unique default hostname."** earlier.
 
 
 ### Option 2: Deploy from Github
