@@ -6,6 +6,7 @@ A terminal-styled web application for managing LANCER RPG missions and your merc
 As this is a standalone web app, you can either:
 - Download it and run it yourself locally, or
 - Host it online using a free website hosting service [**using this guide**](https://github.com/Shteb/LANCER-Bloodmoney-Merc-Board/blob/main/WEBHOSTING_README.md).
+
 I'd recommend the online hosting guide for most people. Otherwise, hosting locally will do just fine if you're comfortable with port-forwarding or using a reverse proxy.
 
 ## How to Run Locally
