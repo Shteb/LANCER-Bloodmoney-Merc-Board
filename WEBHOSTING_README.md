@@ -15,7 +15,7 @@ Contributions on how to host on other services are welcome!
 
 ## Hosting on Azure
 
-Azure offers an App Hosting service with a free plan and some persistent storage option (won't lose your stuff between restarts!). To do so you need to setup a free trial account. Azure requires to input a credit card to setup an account, even if no charges occur. 
+Azure offers an App Hosting service with a free plan and some persistent storage option (won't lose your stuff between restarts!). To do so you need to setup a free trial account. Azure requires to input a payment card to setup an account, although no charges will ever occur. 
 
 ### Option 1: Deploy from Docker Image (Reccomended)
 This option will automatically update your app to the newest version, but requires a bit more configuration than the pulling from code option detailed below. 
