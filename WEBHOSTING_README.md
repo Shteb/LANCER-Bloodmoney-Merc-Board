@@ -20,7 +20,7 @@ Azure offers an App Hosting service with a free plan and some persistent storage
 ### Option 1: Deploy from Docker Image (Reccomended)
 This option will automatically update your app to the newest version, but requires a bit more configuration than the pulling from code option detailed below. 
 
-1. Go to [Azure portal](portal.azure.com)
+1. Go to [Azure portal](https://portal.azure.com)
 2. Click **"Create a resource"** → **"Web App"**
 3. Configure:
    - under Instance Details:
@@ -57,7 +57,7 @@ This option will automatically update your app to the newest version, but requir
 ### Option 2: Deploy from Github
 This is the option with the smallest amount of configuration needed. It consumes quite more space on hard drive than the Docker option, and it requires manual updating whenever the app releases a new version
 
-1. Go to [Azure portal](portal.azure.com)
+1. Go to [Azure portal](https://portal.azure.com)
 2. Click **"Create a resource"** → **"Web App"**
 3. Configure:
    - under Instance Details:
