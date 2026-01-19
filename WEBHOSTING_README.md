@@ -5,9 +5,9 @@ This means you don´t need to setup port forwarding - the app will live on the w
 
 ## Hosting your webapp for free?
 A little disclaimer. 
-There are many services out there for hosting web apps offering hosting for free. These usually have limitations, like keeping your app awake only for so long at a time or not offering permanent storage. The dashboard saves settings and emblems to disk, so in most situations if the app restarts it will revert to the default settings and your jobs / pilots / embles etc will be lost.  
+There are many services out there for hosting web apps offering hosting for free. These usually have limitations, like keeping your app awake only for so long at a time or not offering permanent storage. This means the dashboard saves settings and emblems to disk, so for most hosting services if the app restarts it will revert to the default settings and your jobs / pilots / embles etc will be lost.
 
-The specifics will differ from service provider to service provider, and the exact conditions of each service´s free tier is also bound to change with time - this guide describes two different options, Azure and Render, and how they work at the time of this writing. 
+The specifics will differ from service provider to service provider, and the exact conditions of each service´s free tier is also bound to change with time - this guide describes two different options, Azure and Render, and how they work at the time of this writing.
 
 Contributions on how to host on other services are welcome!
 
@@ -15,7 +15,7 @@ Contributions on how to host on other services are welcome!
 
 ## Hosting on Azure
 
-Azure offers an App Hosting service with a free plan and some persistent storage option. To do so you need to setup a free trial account. Azure requires to input a credit card to setup an account, even if no charges occur. 
+Azure offers an App Hosting service with a free plan and some persistent storage option (won't lose your stuff between restarts!). To do so you need to setup a free trial account. Azure requires to input a credit card to setup an account, even if no charges occur. 
 
 ### Option 1: Deploy from Docker Image (Reccomended)
 This option will automatically update your app to the newest version, but requires a bit more configuration than the pulling from code option detailed below. 
