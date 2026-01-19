@@ -181,6 +181,7 @@
         currentPilots = data.pilots;
         renderJobs(currentAllJobs);
         renderJobHistory(applyAllFilters(currentAllJobs));
+        renderVotingPeriodBanner(); // Update banner when pilots change (active/inactive status)
       }
     }
     
@@ -258,6 +259,18 @@
       // Calculate total votes for this voting period
       const totalVotes = currentOngoingVotingPeriod.jobVotes.reduce((sum, jv) => sum + jv.votes.length, 0);
       
+      // Calculate pending votes (Active pilots who haven't voted)
+      const votedPilotIds = new Set();
+      currentOngoingVotingPeriod.jobVotes.forEach(jv => {
+        jv.votes.forEach(pilotId => votedPilotIds.add(pilotId));
+      });
+      const activePilots = currentPilots.filter(p => p.active);
+      const pendingPilots = activePilots.filter(p => !votedPilotIds.has(p.id));
+      const pendingCallsigns = pendingPilots.map(p => `"${p.callsign}"`).join(', ');
+      const pendingVotesLine = pendingCallsigns 
+        ? `<div class="voting-banner-pending">> PENDING VOTES: ${pendingCallsigns}</div>` 
+        : '';
+      
       if (!endTime || now <= endTime) {
         // Voting is active
         if (endTime) {
@@ -272,15 +285,21 @@
           
           banner.innerHTML = `
             <div class="voting-banner-text">
-              <span class="voting-banner-left">> JOB VOTE LIVE - VOTE ENDS IN ${timeDisplay} AT ${formattedEndTime}</span>
-              <span class="voting-banner-right">> VOTES CAST: ${totalVotes}</span>
+              <div class="voting-banner-left">
+                <div>> JOB VOTE LIVE - VOTE ENDS IN ${timeDisplay} AT ${formattedEndTime}</div>
+                ${pendingVotesLine}
+              </div>
+              <div class="voting-banner-right">> VOTES CAST: ${totalVotes}</div>
             </div>
           `;
         } else {
           banner.innerHTML = `
             <div class="voting-banner-text">
-              <span class="voting-banner-left">> JOB VOTE LIVE - NO END TIME SET</span>
-              <span class="voting-banner-right">> VOTES CAST: ${totalVotes}</span>
+              <div class="voting-banner-left">
+                <div>> JOB VOTE LIVE - NO END TIME SET</div>
+                ${pendingVotesLine}
+              </div>
+              <div class="voting-banner-right">> VOTES CAST: ${totalVotes}</div>
             </div>
           `;
         }
@@ -290,8 +309,8 @@
         
         banner.innerHTML = `
           <div class="voting-banner-text">
-            <span class="voting-banner-left">> VOTING CONCLUDED AT ${formattedEndTime}</span>
-            <span class="voting-banner-right">> TOTAL VOTES: ${totalVotes}</span>
+            <div class="voting-banner-left">> VOTING CONCLUDED AT ${formattedEndTime}</div>
+            <div class="voting-banner-right">> TOTAL VOTES: ${totalVotes}</div>
           </div>
         `;
       }
