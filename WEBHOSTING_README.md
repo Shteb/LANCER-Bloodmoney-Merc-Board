@@ -61,10 +61,12 @@ This option will automatically update your app to the newest version, but requir
    - **Port**: 3000
    - **Startup command**: Can be left as default.
    - **Volume Mounts**: add these two volumes (**important!** or your data won´t persist across restarts)
-   
-      | Volume sub path | Container mount path |
-      | /home/app/data | /app/data |
-      | /home/app/logo_art | /app/logo_art |
+
+| Volume sub path      | Container mount path  |
+|----------------------|----------------------|
+| /home/app/data       | /app/data            |
+| /home/app/logo_art   | /app/logo_art        |
+
 20. Click **Apply** 
 21. Check the **"Continuous deployment for the main container"** checkbox near the top, then **"Apply"**.
 22. Click on the **"Browse"** button, just above the **"main"** entry in the list. This will trigger the initial deployment of the app. Wait for it to complete.
