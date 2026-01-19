@@ -23,11 +23,11 @@ This option will automatically update your app to the newest version, but requir
 1. Go to [Azure portal](https://portal.azure.com)
 2. Click **"Create a resource"** → **"Web App"**
 3. If you haven't used Azure before, this step will begin account creation. **If you already have an Azure account set up, skip to step 10**.
-4. Select **Start with an Azure free trial**. Note that the services we will be using are not subject the to "free for 12 months" limitation stated in the description and should be permanently free. Additionally, you *cannot* be charged on the free trial, so you can rest easy entering your payment credentials later.
-5. A new tab will have opened. Click **Try Azure for free**.
-6. Another new tab will have opened. Fill out the **Profile information** as you might expect. Company VatID can be left blank.
-7. Fill out **Address information** as normal. Ensure that any marketing tickboxes at the bottom are deselected if you don't want marketing emails.
-8. Fill out **Payment information** as normal. As before, you *cannot* be charged on a free trial account so you can rest easy knowing there will be no charged on your card.
+4. Select **"Start with an Azure free trial"**. Note that the services we will be using are not subject the to "free for 12 months" limitation stated in the description and should be permanently free. Additionally, you *cannot* be charged on the free trial, so you can rest easy entering your payment credentials later.
+5. A new tab will have opened. Click **"Try Azure for free"**.
+6. Another new tab will have opened. Fill out the **"Profile information"** as you might expect. Company VatID can be left blank.
+7. Fill out **"Address information"** as normal. Ensure that any marketing tickboxes at the bottom are deselected if you don't want marketing emails.
+8. Fill out **"Payment information"** as normal. As before, you *cannot* be charged on a free trial account so you can rest easy knowing there will be no charged on your card.
 9. Completing the Payment information step will complete your account creation and take you to a dashboard tab. You may close this and go back to the [Azure portal](https://portal.azure.com) and start again from **step 2**.
 10. Configure:
    - under Instance Details:
