@@ -1,4 +1,4 @@
-# Hosting the Blood Money Companion as a public website
+# Hosting the Blood Money Companion app as a public website
 
 This guide will help you deploy the Lancer Bloodmoney Merc Board as a public website. 
 This means you don´t need to setup port forwarding - the app will live on the web and be accessible by anybody with the page´s url. 
