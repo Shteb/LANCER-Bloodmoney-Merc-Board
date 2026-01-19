@@ -1,6 +1,6 @@
 # LANCER Bloodmoney Merc Board
 
-A terminal-styled web application for managing LANCER RPG missions and your mercenary company. Features password-protected access with separate client and admin interfaces for managing jobs, base modules, factions, pilots, and currency (Manna).
+A terminal-styled web application for managing LANCER RPG missions and your mercenary company. Features password-protected access with separate client and admin interfaces for managing jobs, base modules, factions, pilots, reserves, and currency (Manna).
 
 ## How do I use this myself?
 As this is a standalone web app, you can either:
