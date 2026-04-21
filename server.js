@@ -4254,13 +4254,7 @@ app.post('/api/shop/purchase', requireClientAuth, async (req, res) => {
       assigneePilot.reserves.push({
         reserveId: itemId,
         deploymentStatus: 'In Reserve'
-      });
-      
-      // Remove from stock (first occurrence)
-      const stockIndex = storeConfig.currentStock.indexOf(itemId);
-      if (stockIndex !== -1) {
-        storeConfig.currentStock.splice(stockIndex, 1);
-      }
+      })
     }
     
     // Save changes
