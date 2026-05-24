@@ -1,0 +1,221 @@
+  <div id="vote-tab" class="tab-content">
+    <div class="settings-section">
+      <h2>Vote Configuration</h2>
+      <p style="color: #b0b0b0; margin-bottom: 20px;">
+        This section allows the initiation of a voting period on the Job Board for Pilots. 
+        The voting period will end when the End Time elapses, or manually by clicking "Conclude Voting".
+      </p>
+      
+      <%
+        // ongoingPeriod is provided by the server
+        // Archive periods are filtered from votingPeriods
+        const archivedPeriods = votingPeriods.filter(p => p.state === 'Archived').reverse();
+      %>
+      
+      <% if (ongoingPeriod) { %>
+        <!-- Current Ongoing Vote Section -->
+        <div style="margin-bottom: 40px;">
+          <h3 style="color: #66BB6A; margin-bottom: 15px;">Current Vote</h3>
+          
+          <div id="votingPeriodTimeDisplay" style="margin-bottom: 15px; padding: 15px; background-color: #1a1a1a; border-radius: 5px; border: 1px solid #444;">
+            <% if (ongoingPeriod.endTime) { %>
+              <div style="color: #e0e0e0; margin-bottom: 8px;">
+                <strong>Time Remaining:</strong> <span id="timeRemaining">Calculating...</span>
+              </div>
+              <div style="color: #b0b0b0;">
+                <strong>End Time:</strong> <span id="endTime"><%= new Date(ongoingPeriod.endTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/,/, ' -') %></span>
+              </div>
+            <% } else { %>
+              <div style="color: #e0e0e0;">
+                <strong>Duration:</strong> Infinite (No end time set)
+              </div>
+            <% } %>
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <button class="btn btn-secondary" id="conclude-vote-btn" onclick="concludeVote()">Conclude Vote</button>
+            <% if (ongoingPeriod.endTime) { %>
+              <button class="btn btn-primary" id="archive-vote-btn" onclick="archiveVote('<%= ongoingPeriod.id %>')" style="display: none;">Archive Voting Results</button>
+            <% } else { %>
+              <button class="btn btn-primary" onclick="archiveVote('<%= ongoingPeriod.id %>')" disabled style="opacity: 0.5; cursor: not-allowed;" title="Cannot archive until voting concludes">Archive Voting Results</button>
+            <% } %>
+            <button class="btn btn-primary" id="modify-vote-btn" onclick="openModifyVoteModal()">Modify Voting Close</button>
+          </div>
+          
+          <!-- Job List for Ongoing Vote -->
+          <div>
+            <h4 style="color: #e0e0e0; margin-bottom: 15px;">Jobs in Current Vote</h4>
+            <% 
+              const ongoingJobVotes = ongoingPeriod.jobVotes || [];
+              if (ongoingJobVotes.length === 0) { 
+            %>
+              <p style="color: #888;">No jobs in this voting period.</p>
+            <% } else {
+                ongoingJobVotes.forEach(jobVote => {
+                  const job = jobs.find(j => j.id === jobVote.jobId);
+                  const voteCount = (jobVote.votes || []).length;
+                  const votingPilots = (jobVote.votes || []).map(pilotId => {
+                    const pilot = pilots.find(p => p.id === pilotId);
+                    return pilot ? pilot.callsign : 'DELETED PILOT';
+                  });
+            %>
+              <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #444; border-radius: 3px; background-color: #1a1a1a;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                  <% if (job && job.emblem) { %>
+                    <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 60px; height: 60px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                  <% } %>
+                  <div style="flex: 1;">
+                    <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job ? job.name : 'JOB DELETED' %></h5>
+                    <% if (job) { %>
+                      <div style="color: #b0b0b0; font-size: 13px;">
+                        <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                        <strong>Rank:</strong> 
+                        <span class="rank-display" style="font-size: 14px;">
+                          <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                          <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                        </span> | 
+                        <strong>Type:</strong> <%= job.jobType %>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+                <div style="color: #e0e0e0; margin-bottom: 5px;">
+                  <strong>Vote Count:</strong> <%= voteCount %>
+                </div>
+                <div style="color: #b0b0b0;">
+                  <strong>Pilots:</strong> <%= votingPilots.length > 0 ? votingPilots.join(', ') : 'None' %>
+                </div>
+              </div>
+            <% 
+                });
+              }
+            %>
+          </div>
+        </div>
+      <% } else { %>
+        <!-- Create New Voting Period Section -->
+        <div style="margin-bottom: 40px;">
+          <h3 style="color: #66BB6A; margin-bottom: 15px;">Start New Voting Period</h3>
+          
+          <form id="newVotingPeriodForm" style="margin-bottom: 20px;">
+            <div class="form-group">
+              <label for="votingEndTime">End Time</label>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="datetime-local" id="votingEndTime" name="endTime" style="flex: 1; color-scheme: dark;">
+                <label style="display: flex; align-items: center; gap: 5px; color: #b0b0b0; cursor: pointer; white-space: nowrap;">
+                  <input type="checkbox" id="infiniteDuration" name="infiniteDuration" onchange="toggleEndTime(this)">
+                  No end time?
+                </label>
+              </div>
+            </div>
+          </form>
+          
+          <div>
+            <h4 style="color: #e0e0e0; margin-bottom: 15px;">Active Jobs</h4>
+            <% 
+              const activeJobs = jobs.filter(j => j.state === 'Active');
+              if (activeJobs.length === 0) {
+            %>
+              <p style="color: #888;">No Active jobs available to include in voting period.</p>
+            <% } else { %>
+              <div style="margin-bottom: 15px;">
+                <% activeJobs.forEach(job => { %>
+                  <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #444; border-radius: 3px; background-color: #1a1a1a;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                      <% if (job.emblem) { %>
+                        <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 50px; height: 50px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                      <% } %>
+                      <div style="flex: 1;">
+                        <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job.name %></h5>
+                        <div style="color: #b0b0b0; font-size: 13px;">
+                          <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                          <strong>Rank:</strong> 
+                          <span class="rank-display" style="font-size: 14px;">
+                            <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                            <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                          </span> | 
+                          <strong>Type:</strong> <%= job.jobType %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+              <button type="submit" form="newVotingPeriodForm" class="btn btn-primary" onclick="startVotingPeriod(event)">Start Voting Period</button>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Vote Archive Section -->
+      <div>
+        <h3 style="color: #e0e0e0; margin-bottom: 15px;">Vote Archive</h3>
+        
+        <% if (archivedPeriods.length === 0) { %>
+          <p style="color: #888;">No archived voting periods.</p>
+        <% } else { %>
+          <% archivedPeriods.forEach((period, periodIndex) => { %>
+            <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #444; border-radius: 5px; background-color: #1a1a1a;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #b0b0b0; margin: 0;">
+                  Archived Vote #<%= archivedPeriods.length - periodIndex %>
+                  <% if (period.endTime) { %>
+                    - Ended: <%= new Date(period.endTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/,/, ' -') %>
+                  <% } else { %>
+                    - No End Time Set
+                  <% } %>
+                </h4>
+                <button class="btn btn-delete btn-sm" onclick="deleteVoteLog('<%= period.id %>')">Delete Vote Log</button>
+              </div>
+              
+              <% 
+                const archivedJobVotes = period.jobVotes || [];
+                if (archivedJobVotes.length === 0) {
+              %>
+                <p style="color: #888;">No jobs in this voting period.</p>
+              <% } else {
+                  archivedJobVotes.forEach(jobVote => {
+                    const job = jobs.find(j => j.id === jobVote.jobId);
+                    const voteCount = (jobVote.votes || []).length;
+                    const votingPilots = (jobVote.votes || []).map(pilotId => {
+                      const pilot = pilots.find(p => p.id === pilotId);
+                      return pilot ? pilot.callsign : 'DELETED PILOT';
+                    });
+              %>
+                <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #333; border-radius: 3px; background-color: #0a0a0a;">
+                  <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px;">
+                    <% if (job && job.emblem) { %>
+                      <img src="/emblems/<%= job.emblem %>" alt="Emblem" style="width: 50px; height: 50px; border: 1px solid #ddd; padding: 5px; background: white; border-radius: 3px; object-fit: contain;">
+                    <% } %>
+                    <div style="flex: 1;">
+                      <h5 style="color: #e0e0e0; margin-bottom: 5px;"><%= job ? job.name : 'JOB DELETED' %></h5>
+                      <% if (job) { %>
+                        <div style="color: #b0b0b0; font-size: 13px;">
+                          <strong>Client:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %> | 
+                          <strong>Rank:</strong> 
+                          <span class="rank-display" style="font-size: 14px;">
+                            <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+                            <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+                          </span> | 
+                          <strong>Type:</strong> <%= job.jobType %>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div style="color: #e0e0e0; margin-bottom: 5px;">
+                    <strong>Vote Count:</strong> <%= voteCount %>
+                  </div>
+                  <div style="color: #b0b0b0;">
+                    <strong>Pilots:</strong> <%= votingPilots.length > 0 ? votingPilots.join(', ') : 'None' %>
+                  </div>
+                </div>
+              <% 
+                  });
+                }
+              %>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </div>

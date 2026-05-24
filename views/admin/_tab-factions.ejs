@@ -1,0 +1,95 @@
+  <div id="factions-tab" class="tab-content">
+    <div class="add-job-section">
+      <h2>Add New Faction</h2>
+      <form id="addFactionForm">
+        <div class="form-group">
+          <label for="factionTitle">Faction Title</label>
+          <input type="text" id="factionTitle" name="title" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="factionBrief">Brief</label>
+          <textarea id="factionBrief" name="brief" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="factionStanding">Standing</label>
+          <select id="factionStanding" name="standing" required>
+            <option value="0">0 - Distrusted</option>
+            <option value="1">1 - Wary</option>
+            <option value="2" selected>2 - Neutral</option>
+            <option value="3">3 - Respected</option>
+            <option value="4">4 - Trusted</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="factionJobsCompletedOffset">Jobs Completed Offset (This number is added to the completed jobs count)</label>
+          <input type="number" id="factionJobsCompletedOffset" name="jobsCompletedOffset" value="0" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="factionJobsFailedOffset">Jobs Failed Offset (This number is added to the failed jobs count)</label>
+          <input type="number" id="factionJobsFailedOffset" name="jobsFailedOffset" value="0" required>
+        </div>
+
+        <div class="form-group">
+          <label for="factionAdminLog">Admin Log</label>
+          <textarea id="factionAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this faction"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="factionEmblem">Emblem</label>
+          <input type="hidden" id="factionEmblem" name="emblem" value="">
+          <div class="emblem-grid" id="factionEmblemGrid">
+            <div class="emblem-option none" data-emblem="">
+              [None]
+            </div>
+            <% emblems.forEach(emblem => { %>
+              <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+                <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+              </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-add-job">Add Faction</button>
+      </form>
+    </div>
+
+    <div class="jobs-list">
+      <h2>Existing Factions</h2>
+      <div id="factionsList">
+        <% if (factions.length === 0) { %>
+          <p style="color: #b0b0b0;">No factions created yet.</p>
+        <% } else { %>
+          <% factions.forEach(faction => { 
+            const standingLabels = ['Distrusted', 'Wary', 'Neutral', 'Respected', 'Trusted'];
+          %>
+            <div class="faction-item" data-id="<%= faction.id %>">
+              <h3><%= faction.title %></h3>
+              <div class="faction-item-field"><strong>Standing:</strong> <%= standingLabels[faction.standing] || 'Unknown' %></div>
+              <div class="faction-item-field"><strong>Jobs Completed:</strong> <%= faction.jobsCompleted || 0 %> (Offset: <%= faction.jobsCompletedOffset || 0 %>)</div>
+              <div class="faction-item-field"><strong>Jobs Failed:</strong> <%= faction.jobsFailed || 0 %> (Offset: <%= faction.jobsFailedOffset || 0 %>)</div>
+              <div class="faction-item-field"><strong>Brief:</strong> <%= faction.brief %></div>
+              <% if (faction.adminLog) { %>
+              <div class="faction-item-field"><strong>Admin Log:</strong> <%= faction.adminLog %></div>
+              <% } %>
+              <% if (faction.emblem) { %>
+                <div class="faction-item-field">
+                  <strong>Emblem:</strong> <%= faction.emblem %>
+                  <br>
+                  <img src="/emblems/<%= faction.emblem %>" alt="<%= faction.emblem.replace('.svg', '') %>" class="emblem-display">
+                </div>
+              <% } %>
+              <div class="faction-item-actions">
+                <button class="btn btn-edit" onclick="editFaction('<%= faction.id %>')">Edit</button>
+                <button class="btn btn-neutral" onclick="openFactionRelatedJobsModal('<%= faction.id %>')">Related Jobs</button>
+                <button class="btn btn-delete" onclick="deleteFaction('<%= faction.id %>')">Delete</button>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </div>

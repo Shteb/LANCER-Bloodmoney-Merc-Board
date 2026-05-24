@@ -1,0 +1,126 @@
+  <div id="transactions-tab" class="tab-content">
+    <div class="settings-section">
+      <h2>Manna Balance Management</h2>
+      <div class="manna-display">
+        <div style="margin-bottom: 10px;">
+          <strong>Active Balance:</strong> <span id="activeBalance" style="font-size: 1.3em;"><%= balances.activeBalance %></span>
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+        </div>
+        <div style="font-size: 0.9em; color: #b0b0b0;">
+          Total Balance: <span id="totalBalance"><%= balances.totalBalance %></span>
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon" style="width: 20px; height: 20px;">
+        </div>
+      </div>
+      
+      <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Add Transaction</h3>
+      <p style="color: #FFD700; margin-bottom: 10px; font-size: 0.9em;">
+        <strong>Note:</strong> Each pilot will be affected by the full transaction amount.
+      </p>
+      <form id="overviewMannaForm">
+        <div class="form-group">
+          <label for="overviewMannaAmount">Amount (+ or -)</label>
+          <input type="number" id="overviewMannaAmount" name="amount" required>
+        </div>
+        <div class="form-group">
+          <label for="overviewMannaDescription">Transaction Description</label>
+          <input type="text" id="overviewMannaDescription" name="description" required>
+        </div>
+        <div class="form-group">
+          <button type="button" class="btn btn-secondary" onclick="openPilotSelectionModal()">Select Pilot(s)</button>
+          <input type="hidden" id="selectedPilotIds" name="pilotIds" value="">
+          <p style="color: #b0b0b0; margin-top: 5px; font-size: 0.9em;">
+            <span id="selectedPilotsText">No pilots selected (will assign to all active pilots)</span>
+          </p>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Transaction</button>
+      </form>
+      
+      <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Transaction History</h3>
+      
+      <div style="margin-bottom: 15px;">
+        <button class="filter-pill active" data-filter="all" onclick="filterTransactions('all', event)">All</button>
+        <button class="filter-pill" data-filter="assigned" onclick="filterTransactions('assigned', event)">Assigned</button>
+        <button class="filter-pill" data-filter="unassigned" onclick="filterTransactions('unassigned', event)">Unassigned</button>
+      </div>
+      
+      <div id="transactionsList">
+        <% if (manna.transactions.length === 0) { %>
+          <p style="color: #b0b0b0;">No transactions yet.</p>
+        <% } else { %>
+          <% 
+          // Create a map of which pilots have which transactions
+          const pilotTransactionMap = {};
+          pilots.forEach(pilot => {
+            if (pilot.personalTransactions && Array.isArray(pilot.personalTransactions)) {
+              pilot.personalTransactions.forEach(txnId => {
+                if (!pilotTransactionMap[txnId]) {
+                  pilotTransactionMap[txnId] = [];
+                }
+                pilotTransactionMap[txnId].push(pilot);
+              });
+            }
+          });
+          %>
+          <% manna.transactions.slice().reverse().forEach(transaction => { %>
+            <% 
+            const assignedPilots = pilotTransactionMap[transaction.id] || [];
+            const isAssigned = assignedPilots.length > 0;
+            
+            // Sort pilots: active pilots first, then inactive pilots (create copy to avoid mutation)
+            const sortedPilots = [...assignedPilots].sort((a, b) => {
+              if (a.active && !b.active) return -1;
+              if (!a.active && b.active) return 1;
+              return 0;
+            });
+            
+            // Count active pilots only
+            const activePilotCount = assignedPilots.filter(p => p.active).length;
+            const totalAmount = activePilotCount * transaction.amount;
+            %>
+            <div class="transaction-item" data-id="<%= transaction.id %>" data-assigned="<%= isAssigned ? 'true' : 'false' %>">
+              <div class="transaction-item-field">
+                <strong>Date:</strong> <%= new Date(transaction.date).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) %>
+              </div>
+              <div class="transaction-item-field">
+                <strong>Total amount:</strong> 
+                <span style="color: <%= totalAmount >= 0 ? '#66BB6A' : '#f44336' %>">
+                  <%= totalAmount >= 0 ? '+' : '' %><%= totalAmount %>
+                </span>
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+                <span style="color: #888; font-size: 0.9em; margin-left: 5px;">
+                  (<%= activePilotCount %> active pilot<%= activePilotCount !== 1 ? 's' : '' %>)
+                </span>
+              </div>
+              <div class="transaction-item-field">
+                <strong>Individual amount:</strong> 
+                <span style="color: <%= transaction.amount >= 0 ? '#66BB6A' : '#f44336' %>">
+                  <%= transaction.amount >= 0 ? '+' : '' %><%= transaction.amount %>
+                </span>
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+              </div>
+              <div class="transaction-item-field">
+                <strong>Description:</strong> <%= transaction.description %>
+              </div>
+              <div class="transaction-item-field">
+                <strong>Assigned to:</strong> 
+                <% if (sortedPilots.length === 0) { %>
+                  <span style="color: #888;">Unassigned</span>
+                <% } else { %>
+                  <% sortedPilots.forEach((pilot, index) => { %>
+                    <span style="color: <%= pilot.active ? '#66BB6A' : '#888' %>;">
+                      <%= pilot.callsign %><%= index < sortedPilots.length - 1 ? ', ' : '' %>
+                    </span>
+                  <% }); %>
+                <% } %>
+              </div>
+              <div class="transaction-item-actions">
+                <button class="btn btn-secondary" onclick="editTransactionPilots('<%= transaction.id %>')">Select Pilot(s)</button>
+                <button class="btn btn-edit" onclick="editTransaction('<%= transaction.id %>')">Edit</button>
+                <button class="btn btn-delete" onclick="deleteTransaction('<%= transaction.id %>')">Delete</button>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </div>

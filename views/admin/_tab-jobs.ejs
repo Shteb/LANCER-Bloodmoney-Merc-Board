@@ -1,0 +1,207 @@
+  <div id="jobs-tab" class="tab-content">
+  <div class="add-job-section">
+    <h2>Add New Job</h2>
+    <form id="addJobForm">
+      <div class="form-group">
+        <label for="jobName">Job Name</label>
+        <input type="text" id="jobName" name="name" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobRank">Job Rank (1-3 stars)</label>
+        <select id="jobRank" name="rank" required>
+          <option value="1">1 Star</option>
+          <option value="2">2 Stars</option>
+          <option value="3">3 Stars</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobState">Job State</label>
+        <select id="jobState" name="state" required>
+          <% jobStates.forEach(state => { %>
+            <option value="<%= state %>" <%= state === defaultJobState ? 'selected' : '' %>><%= state %></option>
+          <% }); %>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobFaction">Faction (Optional)</label>
+        <select id="jobFaction" name="factionId">
+          <option value="">None</option>
+          <% factions.forEach(faction => { %>
+            <option value="<%= faction.id %>"><%= faction.title %></option>
+          <% }); %>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobType">Job Type</label>
+        <input type="text" id="jobType" name="jobType" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobDescription">Objective</label>
+        <textarea id="jobDescription" name="description" required></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobClientBrief">Client Brief</label>
+        <textarea id="jobClientBrief" name="clientBrief" required></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobCurrencyPay" class="currency-label">
+          Currency Pay (e.g., 100m)
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+        </label>
+        <input type="text" id="jobCurrencyPay" name="currencyPay" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobAdditionalPay">Additional Pay</label>
+        <input type="text" id="jobAdditionalPay" name="additionalPay">
+      </div>
+      
+      <div class="form-group">
+        <label for="jobAdminLog">Admin Log</label>
+        <textarea id="jobAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this job"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="jobEmblem">Emblem</label>
+        <input type="hidden" id="jobEmblem" name="emblem" value="">
+        <div class="emblem-grid" id="emblemGrid">
+          <div class="emblem-option none" data-emblem="">
+            [None]
+          </div>
+          <% emblems.forEach(emblem => { %>
+            <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+              <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </form>
+	
+<div class="button-group">
+  <div class="button-container">
+    <form id="uploadForm" class="form-inline" enctype="multipart/form-data">
+      <input type="file" id="fileInput" class="is-hidden" name="myFile" accept="image/png,image/jpeg,image/bmp">
+      <button type="button" class="btn btn-neutral"
+        onclick="document.getElementById('fileInput').click();"
+        title="Uploads an image and converts it to SVG">
+        Upload Emblem
+      </button>
+    </form>
+    <p class="helper-text">Accepts PNG, JPEG, BMP (max 10MB)</p>
+  </div>
+  
+  <div class="button-container">
+    <button type="button" class="btn btn-delete" id="deleteEmblemBtn" onclick="deleteSelectedEmblem()"
+      title="Deletes the currently selected emblem (if not in use by any jobs)">
+      Delete Selected Emblem
+    </button>
+    <p class="helper-text">Deletes the selected emblem if not in use</p>
+  </div>
+</div>
+
+<button type="submit" class="btn btn-primary btn-add-job" form="addJobForm">Add Job</button>
+	
+  </div>
+
+  <div class="jobs-list">
+    <h2>Job History</h2>
+    
+    <!-- Progress All Jobs Button -->
+    <div style="margin-bottom: 20px;">
+      <button class="btn btn-neutral" onclick="showProgressAllJobsModal()" style="font-size: 14px; padding: 10px 20px;">
+        Progress all Jobs
+      </button>
+      
+      <% 
+        const hasOngoingVotingPeriod = votingPeriods.find(p => p.state === 'Ongoing');
+      %>
+      <% if (hasOngoingVotingPeriod) { %>
+        <div style="margin-top: 10px; padding: 10px; background-color: #3a2a1a; border: 1px solid #FFA726; border-radius: 3px;">
+          <strong style="color: #FFA726;">⚠ Warning:</strong>
+          <span style="color: #e0e0e0;">
+            Moving any Active Job out of the Active state will automatically archive the current Voting Period.
+          </span>
+        </div>
+      <% } %>
+    </div>
+    
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px;">
+      <div class="form-group">
+        <label for="admin-job-search-input">Search Jobs</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="admin-job-search-input" placeholder="Filter jobs..." style="flex: 1; max-width: 400px;">
+          <select id="admin-job-search-field" style="width: 100px;">
+            <option value="all">All</option>
+            <option value="name">Name</option>
+            <option value="faction">Faction</option>
+            <option value="description">Description</option>
+            <option value="pilot">Pilot</option>
+          </select>
+          <button onclick="searchAdminJobs()" class="btn btn-primary">Search</button>
+          <button onclick="clearAdminJobSearch()" class="btn btn-neutral">Clear</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Filter Pills -->
+    <div class="filter-pills">
+      <button class="filter-pill active" data-state="all" onclick="filterJobs('all')">All</button>
+      <% jobStates.forEach(state => { %>
+        <button class="filter-pill" data-state="<%= state %>" onclick="filterJobs('<%= state %>')"><%= state %></button>
+      <% }); %>
+    </div>
+    
+    <div id="jobsList">
+      <% jobs.forEach(job => { %>
+        <div class="job-item" data-id="<%= job.id %>" data-state="<%= job.state || defaultJobState %>">
+          <h3><%= job.name %> <span class="state-badge state-badge-<%= job.stateClass %>"><%= job.state || defaultJobState %></span></h3>
+          <div class="job-item-field">
+            <strong>Rank:</strong> 
+            <span class="rank-display">
+              <% for(let i = 0; i < job.rank; i++) { %><span class="star">★</span><% } %>
+              <% for(let i = job.rank; i < 3; i++) { %><span class="star">☆</span><% } %>
+            </span>
+          </div>
+          <div class="job-item-field"><strong>Faction:</strong> <%= job.faction ? job.faction.title : 'FIELD_NULL' %></div>
+          <div class="job-item-field"><strong>Job Type:</strong> <%= job.jobType %></div>
+          <div class="job-item-field"><strong>Objective:</strong> <%= job.description %></div>
+          <div class="job-item-field"><strong>Client Brief:</strong> <%= job.clientBrief %></div>
+          <div class="job-item-field"><strong>Payment:</strong>
+            <%= job.currencyPay %>
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+          </div>
+          <% if (job.additionalPay) { %>
+            <div class="job-item-field"><strong>Additional Pay:</strong> <%= job.additionalPay %></div>
+          <% } %>
+          <% if (job.adminLog) { %>
+            <div class="job-item-field"><strong>Admin Log:</strong> <%= job.adminLog %></div>
+          <% } %>
+          <% if (job.emblem) { %>
+            <div class="job-item-field">
+              <strong>Emblem:</strong> <%= job.emblem %>
+              <br>
+              <img src="/emblems/<%= job.emblem %>" alt="<%= job.emblem.replace('.svg', '') %>" class="emblem-display">
+            </div>
+          <% } %>
+          <div class="job-item-actions">
+            <button class="btn btn-edit" onclick="editJob('<%= job.id %>')">Edit</button>
+            <% if (job.state === 'Active') { %>
+              <button class="btn btn-primary" onclick="markJobComplete('<%= job.id %>')">Mark Completed</button>
+              <button class="btn btn-delete" onclick="markJobFailed('<%= job.id %>')">Mark Failed</button>
+            <% } %>
+            <button class="btn btn-delete" onclick="deleteJob('<%= job.id %>')">Delete</button>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+  
+  </div>

@@ -1,0 +1,3433 @@
+<script src="/js/sse-client.js"></script>
+<script>
+    // Handle settings update from SSE for admin view
+    function handleSettingsUpdate(data) {
+      if (!data || !data.settings) {
+        return;
+      }
+      
+      const settings = data.settings;
+      
+      // Update currency icons
+      if (settings.currencyIcon) {
+        const currencyIcons = document.querySelectorAll('.currency-icon');
+        currencyIcons.forEach(icon => {
+          if (icon.tagName === 'IMG') {
+            icon.src = `/emblems/${settings.currencyIcon}?v=${Date.now()}`;
+          }
+        });
+        
+        // Update the preview in the settings form
+        const preview = document.getElementById('currentCurrencyIconPreview');
+        const name = document.getElementById('currentCurrencyIconName');
+        if (preview) {
+          preview.src = `/emblems/${settings.currencyIcon}?v=${Date.now()}`;
+        }
+        if (name) {
+          name.textContent = settings.currencyIcon;
+        }
+        
+        // Update the hidden input
+        const input = document.getElementById('settingsCurrencyIcon');
+        if (input) {
+          input.value = settings.currencyIcon;
+        }
+      }
+      
+      // Update openTable state and toggle Personal Operation Progress fields
+      if (settings.openTable !== undefined) {
+        // Toggle "Add New Pilot" form Personal Operation Progress field
+        const addPilotProgressGroup = document.getElementById('addPilotPersonalOperationProgressGroup');
+        if (addPilotProgressGroup) {
+          addPilotProgressGroup.style.display = settings.openTable ? 'block' : 'none';
+        }
+        
+        // Toggle Personal Operation Progress display in existing pilots list
+        const existingPilotProgressFields = document.querySelectorAll('.pilot-personal-operation-progress-display');
+        existingPilotProgressFields.forEach(field => {
+          field.style.display = settings.openTable ? 'block' : 'none';
+        });
+        
+        // Toggle "Edit Pilot" modal Personal Operation Progress field
+        const editPilotProgressGroup = document.getElementById('editPilotPersonalOperationProgressGroup');
+        if (editPilotProgressGroup) {
+          editPilotProgressGroup.style.display = settings.openTable ? 'block' : 'none';
+        }
+        
+        // Toggle "Progress Operation for Active Pilots" button
+        const progressOperationButtonContainer = document.getElementById('progressOperationButtonContainer');
+        if (progressOperationButtonContainer) {
+          progressOperationButtonContainer.style.display = settings.openTable ? 'block' : 'none';
+        }
+      }
+    }
+
+    // Handle pilots update from SSE for admin view
+    function handlePilotsUpdate(data) {
+      if (!data || !data.pilots) {
+        return;
+      }
+      
+      // Check if the pilot reserves modal is currently open
+      const pilotReservesModal = document.getElementById('pilotReservesModal');
+      if (pilotReservesModal && pilotReservesModal.style.display === 'block') {
+        // Get the current pilot ID from the modal
+        const pilotId = document.getElementById('pilotReservesModalPilotId').value;
+        if (pilotId) {
+          // Refresh the modal with updated data
+          openPilotReservesModal(pilotId);
+        }
+      }
+    }
+
+    // Handle manna update from SSE for admin view
+    function handleMannaUpdate(data) {
+      if (!data || !data.manna) {
+        return;
+      }
+      
+      const manna = data.manna;
+      const balances = data.balances || { activeBalance: 0, totalBalance: 0 };
+      
+      // Update balance displays
+      const activeBalance = document.getElementById('activeBalance');
+      if (activeBalance) {
+        activeBalance.textContent = balances.activeBalance;
+      }
+      
+      const totalBalance = document.getElementById('totalBalance');
+      if (totalBalance) {
+        totalBalance.textContent = balances.totalBalance;
+      }
+      
+      // Update transaction list
+      const transactionsList = document.getElementById('transactionsList');
+      if (transactionsList && manna.transactions) {
+        if (manna.transactions.length === 0) {
+          transactionsList.innerHTML = '<p style="color: #b0b0b0;">No transactions yet.</p>';
+        } else {
+          // Fetch pilots to build the pilot-transaction map
+          fetch('/api/pilots')
+            .then(res => res.json())
+            .then(pilots => {
+              const pilotTransactionMap = {};
+              pilots.forEach(pilot => {
+                if (pilot.personalTransactions && Array.isArray(pilot.personalTransactions)) {
+                  pilot.personalTransactions.forEach(txnId => {
+                    if (!pilotTransactionMap[txnId]) {
+                      pilotTransactionMap[txnId] = [];
+                    }
+                    pilotTransactionMap[txnId].push(pilot);
+                  });
+                }
+              });
+              
+              const reversedTransactions = manna.transactions.slice().reverse();
+              const currentFilter = document.querySelector('.filter-pill.active')?.getAttribute('data-filter') || 'all';
+              
+              transactionsList.innerHTML = reversedTransactions.map(transaction => {
+                const date = new Date(transaction.date);
+                const formattedDate = date.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+                const amountColor = transaction.amount >= 0 ? '#66BB6A' : '#f44336';
+                const amountPrefix = transaction.amount >= 0 ? '+' : '';
+                
+                const assignedPilots = pilotTransactionMap[transaction.id] || [];
+                const isAssigned = assignedPilots.length > 0;
+                
+                // Apply filter
+                let displayStyle = '';
+                if (currentFilter === 'assigned' && !isAssigned) {
+                  displayStyle = ' style="display: none;"';
+                } else if (currentFilter === 'unassigned' && isAssigned) {
+                  displayStyle = ' style="display: none;"';
+                }
+                
+                const assignedText = isAssigned 
+                  ? `<span style="color: #66BB6A;">${assignedPilots.map(p => p.callsign).join(', ')}</span>`
+                  : '<span style="color: #888;">Unassigned</span>';
+                
+                return `
+                  <div class="transaction-item" data-id="${transaction.id}" data-assigned="${isAssigned ? 'true' : 'false'}"${displayStyle}>
+                    <div class="transaction-item-field">
+                      <strong>Date:</strong> ${formattedDate}
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Amount:</strong> 
+                      <span style="color: ${amountColor}">
+                        ${amountPrefix}${transaction.amount}
+                      </span>
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Description:</strong> ${transaction.description}
+                    </div>
+                    <div class="transaction-item-field">
+                      <strong>Assigned to:</strong> ${assignedText}
+                    </div>
+                    <div class="transaction-item-actions">
+                      <button class="btn btn-secondary" onclick="editTransactionPilots('${transaction.id}')">Select Pilot(s)</button>
+                      <button class="btn btn-edit" onclick="editTransaction('${transaction.id}')">Edit</button>
+                      <button class="btn btn-delete" onclick="deleteTransaction('${transaction.id}')">Delete</button>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            })
+            .catch(err => {
+              console.error('Error fetching pilots for transaction update:', err);
+            });
+        }
+      }
+    }
+    
+    // Handle voting periods update from SSE for admin view
+    function handleVotingPeriodsUpdate(data) {
+      // Reload the page to show updated voting data
+      // This ensures vote counts and all voting period data are current
+      location.reload();
+    }
+  </script>
+<script>
+    // ==================== VOTING PERIOD MANAGEMENT ====================
+    
+    // Serialize ongoing period once for reuse
+    const ongoingPeriod = <%- JSON.stringify(ongoingPeriod) %>;
+    
+    // Toggle end time input based on infinite duration checkbox
+    function toggleEndTime(checkbox) {
+      const endTimeInput = document.getElementById('votingEndTime');
+      endTimeInput.disabled = checkbox.checked;
+      if (checkbox.checked) {
+        endTimeInput.value = '';
+      }
+    }
+    
+    // Start a new voting period
+    async function startVotingPeriod(event) {
+      event.preventDefault();
+      
+      const infiniteDuration = document.getElementById('infiniteDuration').checked;
+      const endTimeInput = document.getElementById('votingEndTime').value;
+      
+      // Validate end time if not infinite
+      if (!infiniteDuration && !endTimeInput) {
+        alert('Please select an end time or check "No end time?"');
+        return;
+      }
+      
+      // Get all active job IDs
+      const activeJobs = <%- JSON.stringify(activeJobIds) %>;
+      
+      if (activeJobs.length === 0) {
+        alert('No Active jobs available to start a voting period');
+        return;
+      }
+      
+      // Create job votes structure
+      const jobVotes = activeJobs.map(jobId => ({
+        jobId: jobId,
+        votes: []
+      }));
+      
+      // Create voting period object
+      const votingPeriod = {
+        state: 'Ongoing',
+        jobVotes: jobVotes,
+        endTime: infiniteDuration ? null : new Date(endTimeInput).toISOString()
+      };
+      
+      try {
+        const response = await fetch('/api/voting-periods', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(votingPeriod)
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period started successfully!');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to start voting period');
+        }
+      } catch (error) {
+        console.error('Error starting voting period:', error);
+        alert('Error starting voting period');
+      }
+    }
+    
+    // Conclude vote (set end time to 5 seconds in the past)
+    async function concludeVote() {
+      if (!confirm('Are you sure you want to conclude the voting period?')) {
+        return;
+      }
+      
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      // Set end time to 5 seconds in the past
+      const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${ongoingPeriod.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            endTime: fiveSecondsAgo
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period concluded');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to conclude voting period');
+        }
+      } catch (error) {
+        console.error('Error concluding voting period:', error);
+        alert('Error concluding voting period');
+      }
+    }
+    
+    // Archive voting period
+    async function archiveVote(periodId) {
+      if (!confirm('Are you sure you want to archive this voting period?')) {
+        return;
+      }
+      
+      if (!ongoingPeriod || ongoingPeriod.id !== periodId) {
+        alert('Voting period not found or not ongoing');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${periodId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            state: 'Archived'
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting period archived');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to archive voting period');
+        }
+      } catch (error) {
+        console.error('Error archiving voting period:', error);
+        alert('Error archiving voting period');
+      }
+    }
+    
+    // Delete vote log
+    async function deleteVoteLog(periodId) {
+      if (!confirm('Are you sure you want to delete this vote log? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${periodId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          showNotification('Vote log deleted');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to delete vote log');
+        }
+      } catch (error) {
+        console.error('Error deleting vote log:', error);
+        alert('Error deleting vote log');
+      }
+    }
+    
+    // Open modify vote modal
+    // Open modify vote modal
+    function openModifyVoteModal() {
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      const modal = document.getElementById('modify-vote-modal');
+      const endTimeInput = document.getElementById('modify-vote-end-time');
+      const infiniteCheckbox = document.getElementById('modify-vote-infinite-duration');
+      
+      // Set current end time in the input or check infinite
+      if (ongoingPeriod.endTime) {
+        const currentEndTime = new Date(ongoingPeriod.endTime);
+        const year = currentEndTime.getFullYear();
+        const month = String(currentEndTime.getMonth() + 1).padStart(2, '0');
+        const day = String(currentEndTime.getDate()).padStart(2, '0');
+        const hours = String(currentEndTime.getHours()).padStart(2, '0');
+        const minutes = String(currentEndTime.getMinutes()).padStart(2, '0');
+        
+        endTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        endTimeInput.disabled = false;
+        infiniteCheckbox.checked = false;
+      } else {
+        endTimeInput.value = '';
+        endTimeInput.disabled = true;
+        infiniteCheckbox.checked = true;
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    // Toggle end time input in modify modal
+    function toggleModifyEndTime(checkbox) {
+      const endTimeInput = document.getElementById('modify-vote-end-time');
+      endTimeInput.disabled = checkbox.checked;
+      if (checkbox.checked) {
+        endTimeInput.value = '';
+      }
+    }
+    
+    // Close modify vote modal
+    function closeModifyVoteModal() {
+      const modal = document.getElementById('modify-vote-modal');
+      modal.style.display = 'none';
+    }
+    
+    // Modify voting close time
+    async function modifyVotingClose() {
+      if (!ongoingPeriod) {
+        alert('No ongoing voting period found');
+        return;
+      }
+      
+      const endTimeInput = document.getElementById('modify-vote-end-time').value;
+      const infiniteCheckbox = document.getElementById('modify-vote-infinite-duration').checked;
+      
+      let newEndTime = null;
+      
+      if (!infiniteCheckbox) {
+        if (!endTimeInput) {
+          alert('Please select an end time or check "No end time?"');
+          return;
+        }
+        newEndTime = new Date(endTimeInput).toISOString();
+      }
+      
+      try {
+        const response = await fetch(`/api/voting-periods/${ongoingPeriod.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...ongoingPeriod,
+            endTime: newEndTime
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Voting close time updated');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update voting close time');
+        }
+      } catch (error) {
+        console.error('Error updating voting close time:', error);
+        alert('Error updating voting close time');
+      }
+    }
+    
+    // Update time remaining display (for ongoing vote)
+    function updateTimeRemaining() {
+      const timeRemainingEl = document.getElementById('timeRemaining');
+      const endTimeEl = document.getElementById('endTime');
+      const archiveBtn = document.getElementById('archive-vote-btn');
+      const concludeBtn = document.getElementById('conclude-vote-btn');
+      const modifyBtn = document.getElementById('modify-vote-btn');
+      
+      if (!timeRemainingEl || !endTimeEl) {
+        return;
+      }
+      
+      if (!ongoingPeriod || !ongoingPeriod.endTime) {
+        return;
+      }
+      
+      const endTime = new Date(ongoingPeriod.endTime);
+      const now = new Date();
+      const diff = endTime - now;
+      
+      if (diff <= 0) {
+        timeRemainingEl.textContent = 'Voting Concluded';
+        timeRemainingEl.style.color = '#f44336';
+        // Show archive button and hide conclude button when voting has concluded
+        // Keep modify button visible to allow extending voting period
+        if (archiveBtn) {
+          archiveBtn.style.display = 'inline-block';
+        }
+        if (concludeBtn) {
+          concludeBtn.style.display = 'none';
+        }
+        // Modify button stays visible
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(minutes).padStart(2, '0');
+      const secondsStr = String(seconds).padStart(2, '0');
+      
+      timeRemainingEl.textContent = `${hoursStr}:${minutesStr}:${secondsStr} (${hours} hours)`;
+    }
+    
+    // Initialize time remaining update on page load (if on vote tab with ongoing period)
+    document.addEventListener('DOMContentLoaded', function() {
+      if (ongoingPeriod && ongoingPeriod.endTime) {
+        // Update immediately
+        updateTimeRemaining();
+        
+        // Update every second
+        setInterval(updateTimeRemaining, 1000);
+      }
+    });
+    
+  </script>
+<script>
+    // Tab switching
+    function switchTab(tabName, eventOrButton) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Remove active class from all buttons
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').classList.add('active');
+      
+      // Set button as active
+      // If eventOrButton has a target property, it's an event object
+      // Otherwise it's a button element directly
+      let button;
+      if (eventOrButton && typeof eventOrButton === 'object' && 'target' in eventOrButton) {
+        button = eventOrButton.target;
+      } else if (eventOrButton) {
+        button = eventOrButton;
+      }
+      
+      if (button) {
+        button.classList.add('active');
+      }
+      
+      // Update URL hash to persist tab state across page reloads
+      window.location.hash = tabName;
+    }
+    
+    // Toggle minor module enable/disable
+    // ==================== FACILITY MANAGEMENT ====================
+    
+    // Toggle facility purchased status (Major facilities only)
+    async function toggleFacilityPurchased(checkbox) {
+      const facilityIndex = parseInt(checkbox.dataset.facilityIndex);
+      const isPurchased = checkbox.checked;
+      
+      try {
+        const response = await fetch(`/api/facilities/core-major/${facilityIndex}/purchased`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPurchased })
+        });
+        
+        if (!response.ok) {
+          alert('Failed to update facility purchase status');
+          checkbox.checked = !isPurchased; // Revert
+        }
+      } catch (error) {
+        console.error('Error updating facility purchase status:', error);
+        alert('Error updating facility purchase status');
+        checkbox.checked = !isPurchased; // Revert
+      }
+    }
+    
+    // Update facility cost modifier
+    async function updateFacilityCostModifier() {
+      const input = document.getElementById('facilityCostModifier');
+      const modifier = parseFloat(input.value);
+      
+      // Validate modifier
+      if (isNaN(modifier) || modifier < -100 || modifier > 300) {
+        alert('Facility Cost Modifier must be between -100 and 300');
+        return;
+      }
+      
+      try {
+        // Get current settings first
+        const settingsResponse = await fetch('/api/settings');
+        const currentSettings = await settingsResponse.json();
+        
+        // Update with new modifier
+        const updatedSettings = {
+          ...currentSettings,
+          facilityCostModifier: modifier
+        };
+        
+        const response = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSettings)
+        });
+        
+        if (response.ok) {
+          alert('Facility Cost Modifier updated successfully');
+          // Refresh the displayed prices
+          updateDisplayedPrices(modifier);
+        } else {
+          const data = await response.json();
+          alert(`Failed to update modifier: ${data.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Error updating facility cost modifier:', error);
+        alert('Error updating facility cost modifier');
+      }
+    }
+    
+    /**
+     * Apply facility cost modifier to a price and round to nearest 50
+     */
+    function applyFacilityCostModifier(basePrice, modifier) {
+      const price = Number(basePrice);
+      if (Number.isNaN(price) || price < 0) {
+        return 0;
+      }
+      
+      const mod = Number(modifier);
+      if (Number.isNaN(mod)) {
+        return Math.round(price / 50) * 50;
+      }
+      
+      const clampedModifier = Math.max(-100, Math.min(300, mod));
+      const modifiedPrice = price * (1 + clampedModifier / 100);
+      return Math.round(modifiedPrice / 50) * 50;
+    }
+    
+    /**
+     * Update all displayed prices based on the current modifier
+     */
+    function updateDisplayedPrices(modifier) {
+      // Update all upgrade prices
+      document.querySelectorAll('.upgrade-price').forEach(priceEl => {
+        const basePriceStr = priceEl.getAttribute('data-base-price');
+        if (basePriceStr) {
+          const basePrice = parseInt(basePriceStr);
+          const modifiedPrice = applyFacilityCostModifier(basePrice, modifier);
+          // Update the text content, keeping the currency icon
+          const iconHtml = priceEl.querySelector('.currency-icon') ? priceEl.querySelector('.currency-icon').outerHTML : '';
+          priceEl.innerHTML = modifiedPrice + iconHtml;
+        }
+      });
+      
+      // Update all facility prices
+      document.querySelectorAll('.facility-price').forEach(priceEl => {
+        const basePriceStr = priceEl.getAttribute('data-base-price');
+        if (basePriceStr) {
+          const basePrice = parseInt(basePriceStr);
+          const modifiedPrice = applyFacilityCostModifier(basePrice, modifier);
+          // Update the text content, keeping the "Price: " label and currency icon
+          const iconHtml = priceEl.querySelector('.currency-icon') ? priceEl.querySelector('.currency-icon').outerHTML : '';
+          priceEl.innerHTML = 'Price: ' + modifiedPrice + iconHtml;
+        }
+      });
+    }
+    
+    // Initialize prices with current modifier on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      /**
+       * Ensure all price elements under the given root have a data-base-price
+       * attribute. If not already set, derive it from the text content by
+       * stripping non-digit characters. This is more robust against currency
+       * symbols, commas, and additional formatting than a simple regex match.
+       * 
+       * NOTE: Only handles positive integer prices. Negative prices and decimals
+       * are not supported by the facility system.
+       */
+      const initializeBasePriceAttributes = (root) => {
+        if (!root) return;
+        
+        const upgradePrices = root.querySelectorAll
+          ? root.querySelectorAll('.upgrade-price')
+          : [];
+        upgradePrices.forEach(priceEl => {
+          if (priceEl.dataset && priceEl.dataset.basePrice) {
+            return;
+          }
+          const text = priceEl.textContent ? priceEl.textContent.trim() : '';
+          const numeric = text.replace(/[^\d]/g, ''); // Remove all non-digits (currency symbols, commas, etc.)
+          if (numeric) {
+            priceEl.setAttribute('data-base-price', numeric);
+          }
+        });
+        
+        const facilityPrices = root.querySelectorAll
+          ? root.querySelectorAll('.facility-price')
+          : [];
+        facilityPrices.forEach(priceEl => {
+          if (priceEl.dataset && priceEl.dataset.basePrice) {
+            return;
+          }
+          const text = priceEl.textContent ? priceEl.textContent.trim() : '';
+          const numeric = text.replace(/[^\d]/g, ''); // Remove all non-digits (currency symbols, commas, etc.)
+          if (numeric) {
+            priceEl.setAttribute('data-base-price', numeric);
+          }
+        });
+      };
+
+      const modifierInput = document.getElementById('facilityCostModifier');
+      if (modifierInput) {
+        const currentModifier = parseFloat(modifierInput.value) || 0;
+
+        // Store base prices as data attributes for all existing price elements
+        initializeBasePriceAttributes(document);
+        
+        // Apply modifier to displayed prices
+        if (currentModifier !== 0) {
+          updateDisplayedPrices(currentModifier);
+        }
+
+        // Observe dynamically added elements and initialize their base prices
+        // Note: Observer is not disconnected as it needs to run for the lifetime of the page
+        if (window.MutationObserver && document.body) {
+          const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+              mutation.addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                  initializeBasePriceAttributes(node);
+                  // Apply current modifier to newly added elements
+                  // Read current modifier from input element to ensure we use the latest value
+                  const currentMod = parseFloat(modifierInput.value) || 0;
+                  if (currentMod !== 0) {
+                    const upgradePrices = node.querySelectorAll ? node.querySelectorAll('.upgrade-price') : [];
+                    const facilityPrices = node.querySelectorAll ? node.querySelectorAll('.facility-price') : [];
+                    [...upgradePrices, ...facilityPrices].forEach(priceEl => {
+                      const basePrice = parseInt(priceEl.dataset.basePrice, 10); // Explicitly use base-10 parsing
+                      if (!isNaN(basePrice)) {
+                        const modifiedPrice = applyFacilityCostModifier(basePrice, currentMod);
+                        const iconHtml = priceEl.querySelector('.currency-icon') ? priceEl.querySelector('.currency-icon').outerHTML : '';
+                        priceEl.innerHTML = 'Price: ' + modifiedPrice + iconHtml;
+                      }
+                    });
+                  }
+                }
+              });
+            });
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+      }
+    });
+    
+    // Update upgrade count
+    async function updateUpgradeCount(input) {
+      const facilityIndex = parseInt(input.dataset.facilityIndex);
+      const upgradeIndex = parseInt(input.dataset.upgradeIndex);
+      const upgradeCount = parseInt(input.value);
+      const maxPurchases = parseInt(input.max);
+      
+      // Validate count
+      if (upgradeCount < 0 || upgradeCount > maxPurchases) {
+        alert(`Upgrade count must be between 0 and ${maxPurchases}`);
+        input.value = Math.max(0, Math.min(upgradeCount, maxPurchases));
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/facilities/core-major/${facilityIndex}/upgrades/${upgradeIndex}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ upgradeCount })
+        });
+        
+        if (!response.ok) {
+          alert('Failed to update upgrade count');
+          // Reload to get correct value
+          location.reload();
+        }
+      } catch (error) {
+        console.error('Error updating upgrade count:', error);
+        alert('Error updating upgrade count');
+        location.reload();
+      }
+    }
+    
+    // Toggle minor slot enabled status
+    async function toggleMinorSlotEnabled(checkbox) {
+      const slotNumber = parseInt(checkbox.dataset.slotNumber);
+      const enabled = checkbox.checked;
+      
+      try {
+        const response = await fetch(`/api/facilities/minor-slots/${slotNumber}/toggle-enabled`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled })
+        });
+        
+        if (!response.ok) {
+          alert('Failed to toggle slot enabled status');
+          checkbox.checked = !enabled; // Revert
+        }
+      } catch (error) {
+        console.error('Error toggling slot enabled status:', error);
+        alert('Error toggling slot enabled status');
+        checkbox.checked = !enabled; // Revert
+      }
+    }
+    
+    // Open minor facility assignment modal
+    function openMinorFacilityAssignModal(slotNumber) {
+      const modal = document.getElementById('minorFacilityAssignModal');
+      const slotNumberSpan = document.getElementById('assignModalSlotNumber');
+      const grid = document.getElementById('minorFacilityGrid');
+      
+      slotNumberSpan.textContent = slotNumber;
+      
+      // Fetch current minor slots to determine which facilities are already assigned
+      fetch('/api/facilities/minor-slots')
+        .then(res => res.json())
+        .then(minorData => {
+          // Get list of already assigned facility names (excluding the current slot)
+          const assignedNames = minorData.slots
+            .filter(slot => slot.slotNumber !== slotNumber && slot.facilityName)
+            .map(slot => slot.facilityName);
+          
+          // Fetch available minor facility options
+          return fetch('/api/facilities/minor-options')
+            .then(res => res.json())
+            .then(options => {
+              // Filter out already assigned facilities
+              const availableOptions = options.filter(opt => !assignedNames.includes(opt.minorFacilityName));
+              
+              // Populate grid
+              grid.innerHTML = '';
+              availableOptions.forEach(option => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'minor-facility-option';
+                optionDiv.innerHTML = `
+                  <h4>${option.minorFacilityName}</h4>
+                  <div class="facility-price">Price: ${option.minorFacilityPrice}<img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
+                  <p>${option.minorFacilityDescription}</p>
+                `;
+                optionDiv.onclick = () => assignMinorFacility(slotNumber, option);
+                grid.appendChild(optionDiv);
+              });
+              
+              if (availableOptions.length === 0) {
+                grid.innerHTML = '<p style="color: #888; text-align: center; padding: 40px;">No available facilities to assign</p>';
+              }
+            });
+        })
+        .catch(error => {
+          console.error('Error loading minor facility options:', error);
+          alert('Error loading minor facility options');
+        });
+      
+      modal.style.display = 'block';
+    }
+    
+    // Close minor facility assignment modal
+    function closeMinorFacilityAssignModal() {
+      const modal = document.getElementById('minorFacilityAssignModal');
+      modal.style.display = 'none';
+    }
+    
+    // Assign minor facility to slot
+    async function assignMinorFacility(slotNumber, facilityOption) {
+      try {
+        const response = await fetch(`/api/facilities/minor-slots/${slotNumber}/assign`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            facilityName: facilityOption.minorFacilityName,
+            facilityDescription: facilityOption.minorFacilityDescription
+          })
+        });
+        
+        if (response.ok) {
+          closeMinorFacilityAssignModal();
+          // UI will update via SSE
+        } else {
+          alert('Failed to assign facility');
+        }
+      } catch (error) {
+        console.error('Error assigning facility:', error);
+        alert('Error assigning facility');
+      }
+    }
+    
+    // Clear minor facility slot
+    async function clearMinorSlot(slotNumber) {
+      if (!confirm('Are you sure you want to clear this facility slot?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/facilities/minor-slots/${slotNumber}/clear`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          alert('Failed to clear facility slot');
+        }
+        // UI will update via SSE
+      } catch (error) {
+        console.error('Error clearing facility slot:', error);
+        alert('Error clearing facility slot');
+      }
+    }
+    
+    // SSE handler for Core/Major Facilities updates
+    function handleFacilitiesCoreMajorUpdate(data) {
+      if (!data || !data.facilities) {
+        return;
+      }
+      
+      // Only reload if we're on the Base Config tab
+      const baseTab = document.getElementById('base-tab');
+      if (!baseTab || baseTab.style.display === 'none') {
+        return;
+      }
+      
+      // Reload the page to refresh facility data
+      // In a production app, you'd update the DOM directly, but for simplicity we reload
+      location.reload();
+    }
+    
+    // SSE handler for Minor Facilities Slots updates
+    function handleFacilitiesMinorSlotsUpdate(data) {
+      if (!data || !data.minorFacilities) {
+        return;
+      }
+      
+      // Only reload if we're on the Base Config tab
+      const baseTab = document.getElementById('base-tab');
+      if (!baseTab || baseTab.style.display === 'none') {
+        return;
+      }
+      
+      // Reload the page to refresh facility data
+      // In a production app, you'd update the DOM directly, but for simplicity we reload
+      location.reload();
+    }
+    
+    // Helper function to format emblem filename for display
+    function formatEmblemTitle(filename) {
+      return filename.replace('.svg', '').replace(/_/g, ' ');
+    }
+
+    // Settings form submission
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      // Client-side date validation
+      const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
+      if (data.unt && !datePattern.test(data.unt)) {
+        alert('Invalid date format. Please use DD/MM/YYYY');
+        return;
+      }
+      
+      if (data.unt && datePattern.test(data.unt)) {
+        const [day, month, year] = data.unt.split('/').map(Number);
+        if (month < 1 || month > 12 || day < 1) {
+          alert('Invalid date values. Day must be at least 1, month must be 1-12');
+          return;
+        }
+        
+        // Check days per month
+        const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        // Check for leap year
+        const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        if (month === 2 && isLeapYear) {
+          daysInMonth[1] = 29;
+        }
+        
+        if (day > daysInMonth[month - 1]) {
+          alert(`Invalid day for month ${month}. Maximum is ${daysInMonth[month - 1]} days.`);
+          return;
+        }
+      }
+      
+      try {
+        const response = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          // Visual feedback on button
+          const btn = document.querySelector('button[type="submit"]');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Saved!';
+          btn.style.backgroundColor = '#28a745';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.backgroundColor = '';
+          }, 2000);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to save settings');
+        }
+      } catch (error) {
+        alert('Error saving settings');
+      }
+    });
+
+    // Emblem selection handling
+    function setupEmblemGrid(gridId, inputId) {
+      const grid = document.getElementById(gridId);
+      const input = document.getElementById(inputId);
+      
+      grid.addEventListener('click', (e) => {
+        const option = e.target.closest('.emblem-option');
+        if (!option) {
+          e.stopPropagation();
+          return;
+        }
+        
+        // Remove selected class from all options in this grid
+        grid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+        
+        // Add selected class to clicked option
+        option.classList.add('selected');
+        
+        // Update hidden input
+        input.value = option.getAttribute('data-emblem');
+      });
+    }
+    
+    // Initialize emblem grids
+    setupEmblemGrid('emblemGrid', 'jobEmblem');
+    setupEmblemGrid('editEmblemGrid', 'editJobEmblem');
+    setupEmblemGrid('factionEmblemGrid', 'factionEmblem');
+    setupEmblemGrid('editFactionEmblemGrid', 'editFactionEmblem');
+    setupEmblemGrid('currencyIconGrid', 'settingsCurrencyIcon');
+    
+    // Currency Icon Modal Functions
+    function openCurrencyIconModal() {
+      const modal = document.getElementById('currencyIconModal');
+      const grid = document.getElementById('currencyIconGrid');
+      const currentIcon = document.getElementById('settingsCurrencyIcon').value;
+      
+      // Select the current icon in the grid
+      grid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+      const currentOption = Array.from(grid.querySelectorAll('.emblem-option'))
+        .find(opt => opt.getAttribute('data-emblem') === currentIcon);
+      if (currentOption) {
+        currentOption.classList.add('selected');
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    function closeCurrencyIconModal() {
+      const modal = document.getElementById('currencyIconModal');
+      modal.style.display = 'none';
+    }
+    
+    async function saveCurrencyIcon() {
+      const selectedIcon = document.getElementById('settingsCurrencyIcon').value;
+      
+      if (!selectedIcon) {
+        alert('Please select a currency icon');
+        return;
+      }
+      
+      // Update the preview in the settings form
+      const preview = document.getElementById('currentCurrencyIconPreview');
+      const name = document.getElementById('currentCurrencyIconName');
+      preview.src = `/emblems/${selectedIcon}?v=${Date.now()}`;
+      name.textContent = selectedIcon;
+      
+      // Close the modal
+      closeCurrencyIconModal();
+      
+      showNotification('Currency icon updated in form. Click "Save Settings" to apply.');
+    }
+    
+    // Flag to prevent auto-selection during programmatic job edit form population
+    let isPopulatingJobEditForm = false;
+    
+    // Auto-select emblem when faction is selected
+    function autoSelectEmblemForFaction(factionSelectId, emblemGridId, emblemInputId) {
+      const factionSelect = document.getElementById(factionSelectId);
+      const emblemGrid = document.getElementById(emblemGridId);
+      const emblemInput = document.getElementById(emblemInputId);
+      const factionsList = <%- JSON.stringify(factions) %>;
+      
+      if (!factionSelect || !emblemGrid || !emblemInput) return;
+      
+      factionSelect.addEventListener('change', function() {
+        // Skip auto-selection if we're programmatically populating the job edit form
+        if (isPopulatingJobEditForm) {
+          return;
+        }
+        
+        const selectedFactionId = this.value;
+        
+        // If no faction selected, don't change the emblem
+        if (!selectedFactionId || selectedFactionId === '') {
+          return;
+        }
+        
+        // Find the selected faction
+        const selectedFaction = factionsList.find(f => f.id === selectedFactionId);
+        
+        if (selectedFaction && selectedFaction.emblem) {
+          // Find and select the matching emblem in the grid
+          const matchingEmblemOption = Array.from(emblemGrid.querySelectorAll('.emblem-option'))
+            .find(opt => opt.getAttribute('data-emblem') === selectedFaction.emblem);
+          
+          if (matchingEmblemOption) {
+            // Remove selected class from all options
+            emblemGrid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+            
+            // Select the matching emblem
+            matchingEmblemOption.classList.add('selected');
+            emblemInput.value = selectedFaction.emblem;
+          }
+        }
+      });
+    }
+    
+    // Setup auto-selection for both add and edit job forms
+    autoSelectEmblemForFaction('jobFaction', 'emblemGrid', 'jobEmblem');
+    autoSelectEmblemForFaction('editJobFaction', 'editEmblemGrid', 'editJobEmblem');
+    
+    // Store notification timeout ID
+    let notificationTimeoutId = null;
+
+    // Show notification
+    function showNotification(message) {
+      const notification = document.getElementById('notificationFooter');
+      
+      // Clear any existing timeout to prevent race conditions
+      if (notificationTimeoutId) {
+        clearTimeout(notificationTimeoutId);
+      }
+      
+      // Remove the class first to reset the transition
+      notification.classList.remove('show');
+      notification.textContent = message;
+      
+      // Force a reflow to ensure the transition works
+      void notification.offsetWidth;
+      
+      // Add the class to trigger the transition
+      notification.classList.add('show');
+      
+      notificationTimeoutId = setTimeout(() => {
+        notification.classList.remove('show');
+        notificationTimeoutId = null;
+      }, 3000);
+    }
+
+    function upsertEmblemOption(gridEl, emblemFilename) {
+      const options = Array.from(gridEl.querySelectorAll('.emblem-option'));
+      let option = options.find(o => o.getAttribute('data-emblem') === emblemFilename);
+
+      const title = formatEmblemTitle(emblemFilename);
+      const src = `/emblems/${encodeURIComponent(emblemFilename)}?v=${Date.now()}`;
+
+      if (!option) {
+        option = document.createElement('div');
+        option.className = 'emblem-option';
+        option.setAttribute('data-emblem', emblemFilename);
+        option.title = title;
+
+        const img = document.createElement('img');
+        img.alt = title;
+        img.src = src;
+        option.appendChild(img);
+
+        gridEl.appendChild(option);
+      } else {
+        option.title = title;
+        const img = option.querySelector('img');
+        if (img) img.src = src;
+      }
+
+      return option;
+    }
+
+    document.getElementById('fileInput').addEventListener('change', async function () {
+      if (!this.files || this.files.length === 0) return;
+
+      const filePayload = new FormData();
+      filePayload.append('myFile', this.files[0]);
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: filePayload
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Failed to parse JSON response:', jsonError);
+          alert('Server returned an invalid response. Please try again or contact support.');
+          return;
+        }
+        if (!response.ok) {
+          alert((data && data.message) || 'Upload failed');
+          return;
+        }
+
+        const emblem = data.emblem;
+        const addGrid = document.getElementById('emblemGrid');
+        const editGrid = document.getElementById('editEmblemGrid');
+        const currencyGrid = document.getElementById('currencyIconGrid');
+        const factionGrid = document.getElementById('factionEmblemGrid');
+        const editFactionGrid = document.getElementById('editFactionEmblemGrid');
+
+        const addOption = upsertEmblemOption(addGrid, emblem);
+        upsertEmblemOption(editGrid, emblem);
+        upsertEmblemOption(currencyGrid, emblem);
+        upsertEmblemOption(factionGrid, emblem);
+        upsertEmblemOption(editFactionGrid, emblem);
+
+        addGrid.querySelectorAll('.emblem-option').forEach(o => o.classList.remove('selected'));
+        addOption.classList.add('selected');
+        document.getElementById('jobEmblem').value = emblem;
+
+        showNotification(`Emblem uploaded: ${emblem}`);
+      } catch (error) {
+        alert('Network error during upload: ' + error.message);
+      } finally {
+        this.value = '';
+      }
+    });
+
+    // Add job
+    document.getElementById('addJobForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      try {
+        const response = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          showNotification('Job added successfully!');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        }
+      } catch (error) {
+        alert('Error adding job');
+      }
+    });
+
+    // Edit job
+    function editJob(id) {
+      const jobItem = document.querySelector(`.job-item[data-id="${id}"]`);
+      const jobData = <%- JSON.stringify(jobs) %>.find(j => j.id === id);
+      const defaultJobState = '<%= defaultJobState %>';
+      
+      // Set flag to prevent auto-selection during form population
+      isPopulatingJobEditForm = true;
+      
+      document.getElementById('editJobId').value = jobData.id;
+      document.getElementById('editJobName').value = jobData.name;
+      document.getElementById('editJobRank').value = jobData.rank;
+      document.getElementById('editJobState').value = jobData.state || defaultJobState;
+      document.getElementById('editJobFaction').value = jobData.factionId || '';
+      document.getElementById('editJobType').value = jobData.jobType;
+      document.getElementById('editJobDescription').value = jobData.description;
+      document.getElementById('editJobClientBrief').value = jobData.clientBrief;
+      document.getElementById('editJobCurrencyPay').value = jobData.currencyPay;
+      document.getElementById('editJobAdditionalPay').value = jobData.additionalPay || '';
+      document.getElementById('editJobAdminLog').value = jobData.adminLog || '';
+      document.getElementById('editJobEmblem').value = jobData.emblem || '';
+      
+      // Select the correct emblem in the grid
+      const editGrid = document.getElementById('editEmblemGrid');
+      editGrid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+      const selectedEmblem = Array.from(editGrid.querySelectorAll('.emblem-option')).find(opt => opt.getAttribute('data-emblem') === (jobData.emblem || ''));
+      if (selectedEmblem) {
+        selectedEmblem.classList.add('selected');
+      }
+      
+      // Clear flag after form is populated
+      isPopulatingJobEditForm = false;
+      
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    document.getElementById('editJobForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      const id = document.getElementById('editJobId').value;
+      
+      try {
+        const response = await fetch(`/api/jobs/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          showNotification('Changes successfully saved');
+          closeEditModal();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          let errorMsg = 'Failed to update job';
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.message) {
+              errorMsg += ': ' + errorData.message;
+            }
+          } catch (e) {
+            // ignore JSON parse errors
+          }
+          showNotification(errorMsg);
+        }
+      } catch (error) {
+        alert('Error updating job');
+      }
+    });
+
+    // Delete job
+    async function deleteJob(id) {
+      if (confirm('Are you sure you want to delete this job?')) {
+        try {
+          const response = await fetch(`/api/jobs/${id}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            saveScrollPositionForReload();
+            location.reload();
+          }
+        } catch (error) {
+          alert('Error deleting job');
+        }
+      }
+    }
+    
+    // Helper function to update job state
+    async function updateJobState(id, newState, confirmMessage, successMessage) {
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs/${id}/state`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: newState })
+        });
+
+        if (response.ok) {
+          showNotification(successMessage);
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          showNotification(errorData.message || 'Failed to update job state');
+        }
+      } catch (error) {
+        showNotification('Error updating job state');
+      }
+    }
+
+    // Mark job as complete
+    async function markJobComplete(id) {
+      return updateJobState(
+        id,
+        'Complete',
+        'Mark this job as Completed?',
+        'Job marked as Completed!'
+      );
+    }
+    
+    // Mark job as failed
+    async function markJobFailed(id) {
+      return updateJobState(
+        id,
+        'Failed',
+        'Mark this job as Failed?',
+        'Job marked as Failed!'
+      );
+    }
+    
+    // Filter jobs by state
+    function filterJobs(state) {
+      const jobItems = document.querySelectorAll('.job-item');
+      const filterPills = document.querySelectorAll('.filter-pill');
+      
+      // Update active pill
+      filterPills.forEach(pill => {
+        if (pill.getAttribute('data-state') === state) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      
+      // Filter job items
+      jobItems.forEach(item => {
+        const itemState = item.getAttribute('data-state');
+        if (state === 'all' || itemState === state) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // Admin job search functionality
+    let adminJobSearchTerm = '';
+    let adminJobSearchField = 'all';
+    let adminCurrentState = 'all';
+
+    // Search admin jobs
+    function searchAdminJobs() {
+      const searchInput = document.getElementById('admin-job-search-input');
+      const searchFieldSelect = document.getElementById('admin-job-search-field');
+      
+      adminJobSearchTerm = searchInput.value.toLowerCase().trim();
+      adminJobSearchField = searchFieldSelect.value;
+      
+      applyAdminFilters();
+    }
+    
+    // Clear admin job search
+    function clearAdminJobSearch() {
+      const searchInput = document.getElementById('admin-job-search-input');
+      const searchFieldSelect = document.getElementById('admin-job-search-field');
+      
+      searchInput.value = '';
+      searchFieldSelect.value = 'all';
+      adminJobSearchTerm = '';
+      adminJobSearchField = 'all';
+      
+      applyAdminFilters();
+    }
+    
+    // Apply both state filter and search filter
+    function applyAdminFilters() {
+      const jobItems = document.querySelectorAll('.job-item');
+      
+      jobItems.forEach(item => {
+        const itemState = item.getAttribute('data-state');
+        const stateMatch = adminCurrentState === 'all' || itemState === adminCurrentState;
+        
+        let searchMatch = true;
+        if (adminJobSearchTerm) {
+          // Get all text content from the job item
+          const allText = item.textContent.toLowerCase();
+          const jobTitle = item.querySelector('h3').textContent.toLowerCase();
+          
+          if (adminJobSearchField === 'all') {
+            searchMatch = allText.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'name') {
+            searchMatch = jobTitle.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'faction') {
+            if (adminJobSearchTerm === 'none') {
+              searchMatch = allText.includes('field_null');
+            } else {
+              searchMatch = allText.includes(adminJobSearchTerm);
+            }
+          } else if (adminJobSearchField === 'description') {
+            searchMatch = allText.includes(adminJobSearchTerm);
+          } else if (adminJobSearchField === 'pilot') {
+            // For pilot search - would need additional data structure
+            searchMatch = allText.includes(adminJobSearchTerm);
+          }
+        }
+        
+        if (stateMatch && searchMatch) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+    
+    // Override filterJobs to work with search
+    filterJobs = function(state) {
+      adminCurrentState = state;
+      const filterPills = document.querySelectorAll('.filter-pill');
+      
+      // Update active pill
+      filterPills.forEach(pill => {
+        if (pill.getAttribute('data-state') === state) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      
+      applyAdminFilters();
+    };
+
+    // Delete selected emblem
+    async function deleteSelectedEmblem() {
+      const selectedEmblem = document.getElementById('jobEmblem').value;
+      
+      if (!selectedEmblem) {
+        alert('Please select an emblem to delete');
+        return;
+      }
+      
+      if (confirm(`Are you sure you want to delete the emblem "${formatEmblemTitle(selectedEmblem)}"?\n\nThis action cannot be undone.`)) {
+        try {
+          const response = await fetch(`/api/emblems/${encodeURIComponent(selectedEmblem)}`, {
+            method: 'DELETE'
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok) {
+            showNotification('Emblem deleted successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            alert(data.message || 'Failed to delete emblem');
+          }
+        } catch (error) {
+          alert('Error deleting emblem: ' + error.message);
+        }
+      }
+    }
+
+    // ==================== BASE MANAGEMENT ====================
+    
+    // ==================== OVERVIEW MANNA MANAGEMENT ====================
+    // Pilot selection modal state
+    let pilotSelectionContext = null; // 'add' or { type: 'edit', transactionId: '...' }
+    let selectedPilotIds = [];
+    
+    function openPilotSelectionModal(transactionId = null) {
+      const modal = document.getElementById('pilotSelectionModal');
+      
+      if (transactionId) {
+        pilotSelectionContext = { type: 'edit', transactionId };
+        // Get current pilot selections for this transaction
+        fetch('/api/pilots')
+          .then(res => {
+            if (!res.ok) {
+              throw new Error('Failed to fetch pilot data');
+            }
+            return res.json();
+          })
+          .then(pilots => {
+            selectedPilotIds = pilots
+              .filter(p => p.personalTransactions && p.personalTransactions.includes(transactionId))
+              .map(p => p.id);
+            updatePilotCheckboxes();
+            // Display modal only after data is loaded
+            modal.style.display = 'block';
+          })
+          .catch(error => {
+            console.error('Error fetching pilot data:', error);
+            // Do not open modal on error; inform user via alert
+            alert('Failed to load pilot data. Please try again.');
+          });
+      } else {
+        pilotSelectionContext = 'add';
+        selectedPilotIds = [];
+        updatePilotCheckboxes();
+        modal.style.display = 'block';
+      }
+    }
+    
+    function closePilotSelectionModal() {
+      document.getElementById('pilotSelectionModal').style.display = 'none';
+      pilotSelectionContext = null;
+    }
+    
+    function updatePilotCheckboxes() {
+      const checkboxes = document.querySelectorAll('.pilot-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = selectedPilotIds.includes(cb.value);
+      });
+    }
+    
+    function confirmPilotSelection() {
+      const checkboxes = document.querySelectorAll('.pilot-checkbox:checked');
+      selectedPilotIds = Array.from(checkboxes).map(cb => cb.value);
+      
+      if (pilotSelectionContext === 'add') {
+        // Update the form
+        document.getElementById('selectedPilotIds').value = JSON.stringify(selectedPilotIds);
+        
+        // Update the display text
+        if (selectedPilotIds.length === 0) {
+          document.getElementById('selectedPilotsText').textContent = 'No pilots selected (will assign to all active pilots)';
+        } else {
+          const pilotNames = Array.from(checkboxes).map(cb => cb.parentElement.textContent.trim());
+          document.getElementById('selectedPilotsText').textContent = `Selected: ${pilotNames.join(', ')}`;
+        }
+      } else if (pilotSelectionContext && pilotSelectionContext.type === 'edit') {
+        // Update the transaction's pilot associations
+        updateTransactionPilots(pilotSelectionContext.transactionId, selectedPilotIds);
+      }
+      
+      closePilotSelectionModal();
+    }
+    
+    async function updateTransactionPilots(transactionId, pilotIds) {
+      try {
+        const response = await fetch(`/api/manna/transaction/${transactionId}/pilots`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pilotIds })
+        });
+        
+        if (response.ok) {
+          showNotification('Transaction pilot assignments updated!');
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update pilot assignments');
+        }
+      } catch (error) {
+        console.error('Error updating transaction pilots:', error);
+        alert('Error updating pilot assignments');
+      }
+    }
+    
+    function editTransactionPilots(transactionId) {
+      openPilotSelectionModal(transactionId);
+    }
+    
+    // Transaction filtering
+    function filterTransactions(filter, event) {
+      // Update active pill
+      document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Filter transactions
+      const transactions = document.querySelectorAll('.transaction-item');
+      transactions.forEach(txn => {
+        const isAssigned = txn.getAttribute('data-assigned') === 'true';
+        
+        if (filter === 'all') {
+          txn.style.display = '';
+        } else if (filter === 'assigned') {
+          txn.style.display = isAssigned ? '' : 'none';
+        } else if (filter === 'unassigned') {
+          txn.style.display = !isAssigned ? '' : 'none';
+        }
+      });
+    }
+    
+    if (document.getElementById('overviewMannaForm')) {
+      document.getElementById('overviewMannaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        // Parse pilotIds from JSON string
+        if (data.pilotIds) {
+          try {
+            data.pilotIds = JSON.parse(data.pilotIds);
+          } catch (e) {
+            data.pilotIds = [];
+          }
+        }
+        
+        try {
+          const response = await fetch('/api/manna/transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            document.getElementById('overviewMannaForm').reset();
+            document.getElementById('selectedPilotIds').value = '';
+            document.getElementById('selectedPilotsText').textContent = 'No pilots selected (will assign to all active pilots)';
+            showNotification('Transaction added successfully!');
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to add transaction');
+          }
+        } catch (error) {
+          console.error('Error adding transaction:', error);
+          alert('Error adding transaction');
+        }
+      });
+    }
+    
+    // ==================== MANNA MANAGEMENT ====================
+    if (document.getElementById('mannaForm')) {
+      document.getElementById('mannaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        try {
+          const response = await fetch('/api/manna/transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            document.getElementById('mannaBalance').textContent = result.manna.balance;
+            document.getElementById('mannaForm').reset();
+            showNotification('Transaction added successfully!');
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to add transaction');
+          }
+        } catch (error) {
+          alert('Error adding transaction');
+        }
+      });
+    }
+    
+    // ==================== FACTION MANAGEMENT ====================
+    if (document.getElementById('addFactionForm')) {
+      document.getElementById('addFactionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        try {
+          const response = await fetch('/api/factions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            showNotification('Faction added successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to add faction');
+          }
+        } catch (error) {
+          alert('Error adding faction');
+        }
+      });
+    }
+    
+    function editFaction(id) {
+      const factionData = <%- JSON.stringify(factions) %>.find(f => f.id === id);
+      
+      document.getElementById('editFactionId').value = factionData.id;
+      document.getElementById('editFactionTitle').value = factionData.title;
+      document.getElementById('editFactionBrief').value = factionData.brief;
+      document.getElementById('editFactionStanding').value = factionData.standing;
+      document.getElementById('editFactionJobsCompletedOffset').value = factionData.jobsCompletedOffset || 0;
+      document.getElementById('editFactionJobsFailedOffset').value = factionData.jobsFailedOffset || 0;
+      document.getElementById('editFactionAdminLog').value = factionData.adminLog || '';
+      document.getElementById('editFactionEmblem').value = factionData.emblem || '';
+      
+      // Select the correct emblem in the grid
+      const editGrid = document.getElementById('editFactionEmblemGrid');
+      editGrid.querySelectorAll('.emblem-option').forEach(opt => opt.classList.remove('selected'));
+      const selectedEmblem = Array.from(editGrid.querySelectorAll('.emblem-option')).find(opt => opt.getAttribute('data-emblem') === (factionData.emblem || ''));
+      if (selectedEmblem) {
+        selectedEmblem.classList.add('selected');
+      }
+      
+      document.getElementById('editFactionModal').style.display = 'block';
+    }
+    
+    function closeEditFactionModal() {
+      document.getElementById('editFactionModal').style.display = 'none';
+    }
+    
+    if (document.getElementById('editFactionForm')) {
+      document.getElementById('editFactionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        const id = document.getElementById('editFactionId').value;
+        
+        try {
+          const response = await fetch(`/api/factions/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            showNotification('Faction updated successfully');
+            closeEditFactionModal();
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to update faction');
+          }
+        } catch (error) {
+          alert('Error updating faction');
+        }
+      });
+    }
+    
+    async function deleteFaction(id) {
+      if (confirm('Are you sure you want to delete this faction?')) {
+        try {
+          const response = await fetch(`/api/factions/${id}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            showNotification('Faction deleted successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            alert('Failed to delete faction');
+          }
+        } catch (error) {
+          alert('Error deleting faction');
+        }
+      }
+    }
+    
+    // ==================== TRANSACTION MANAGEMENT ====================
+    function editTransaction(id) {
+      const transactionData = <%- JSON.stringify(manna.transactions) %>.find(t => t.id === id);
+      
+      if (!transactionData) {
+        alert('Transaction not found');
+        return;
+      }
+      
+      document.getElementById('editTransactionId').value = transactionData.id;
+      
+      // Convert ISO date to datetime-local format (YYYY-MM-DDTHH:mm)
+      const date = new Date(transactionData.date);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const localDatetime = `${year}-${month}-${day}T${hours}:${minutes}`;
+      
+      document.getElementById('editTransactionDate').value = localDatetime;
+      document.getElementById('editTransactionAmount').value = transactionData.amount;
+      document.getElementById('editTransactionDescription').value = transactionData.description;
+      
+      document.getElementById('editTransactionModal').style.display = 'block';
+    }
+    
+    function closeEditTransactionModal() {
+      document.getElementById('editTransactionModal').style.display = 'none';
+    }
+    
+    if (document.getElementById('editTransactionForm')) {
+      document.getElementById('editTransactionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        const id = document.getElementById('editTransactionId').value;
+        
+        // Validate amount
+        const amount = parseInt(data.amount);
+        if (isNaN(amount)) {
+          alert('Invalid amount. Please enter a valid number.');
+          return;
+        }
+        
+        try {
+          const response = await fetch(`/api/manna/transaction/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: new Date(data.date).toISOString(),
+              amount: amount,
+              description: data.description
+            })
+          });
+          
+          if (response.ok) {
+            showNotification('Transaction updated successfully');
+            closeEditTransactionModal();
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to update transaction');
+          }
+        } catch (error) {
+          alert('Error updating transaction');
+        }
+      });
+    }
+    
+    async function deleteTransaction(id) {
+      if (confirm('Are you sure you want to delete this transaction?\n\nNote: This will NOT affect the current balance value.')) {
+        try {
+          const response = await fetch(`/api/manna/transaction/${id}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            showNotification('Transaction deleted successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to delete transaction');
+          }
+        } catch (error) {
+          alert('Error deleting transaction');
+        }
+      }
+    }
+    
+    // ==================== PILOT MANAGEMENT ====================
+    if (document.getElementById('addPilotForm')) {
+      document.getElementById('addPilotForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        // Ensure checkbox state is always captured explicitly
+        data.active = formData.get('active') === 'true' || formData.has('active');
+        
+        // Ensure personalOperationProgress has a value (default to 0 if field doesn't exist)
+        if (data.personalOperationProgress === undefined || data.personalOperationProgress === null) {
+          data.personalOperationProgress = 0;
+        }
+        
+        try {
+          const response = await fetch('/api/pilots', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            showNotification('Pilot added successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to add pilot');
+          }
+        } catch (error) {
+          alert('Error adding pilot');
+        }
+      });
+    }
+    
+    function editPilot(id) {
+      const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === id);
+      
+      if (!pilotData) {
+        alert('Pilot not found');
+        return;
+      }
+      
+      document.getElementById('editPilotId').value = pilotData.id;
+      document.getElementById('editPilotName').value = pilotData.name;
+      document.getElementById('editPilotCallsign').value = pilotData.callsign;
+      document.getElementById('editPilotLL').value = pilotData.ll;
+      document.getElementById('editPilotNotes').value = pilotData.notes || '';
+      document.getElementById('editPilotAdminLog').value = pilotData.adminLog || '';
+      document.getElementById('editPilotActive').checked = pilotData.active;
+      
+      // Set personalOperationProgress if the field exists (when openTable is ON)
+      // When openTable is OFF, the field is not rendered in the DOM and this safely skips setting the value
+      const personalProgressField = document.getElementById('editPilotPersonalOperationProgress');
+      if (personalProgressField) {
+        personalProgressField.value = pilotData.personalOperationProgress ?? 0;
+      }
+      
+      document.getElementById('editPilotModal').style.display = 'block';
+    }
+    
+    function closeEditPilotModal() {
+      document.getElementById('editPilotModal').style.display = 'none';
+    }
+    
+    if (document.getElementById('editPilotForm')) {
+      document.getElementById('editPilotForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        const id = document.getElementById('editPilotId').value;
+        
+        // Ensure checkbox state is always captured explicitly
+        data.active = formData.get('active') === 'true' || formData.has('active');
+        
+        // Get current pilot's related jobs
+        const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === id);
+        data.relatedJobs = pilotData ? pilotData.relatedJobs : [];
+        
+        // Preserve fields not present in the edit form
+        data.personalTransactions = pilotData ? (pilotData.personalTransactions || []) : [];
+        data.reserves = pilotData ? (pilotData.reserves || []) : [];
+        
+        // Ensure personalOperationProgress has a value (preserve existing if field doesn't exist)
+        if (data.personalOperationProgress === undefined || data.personalOperationProgress === null) {
+          data.personalOperationProgress = pilotData ? (pilotData.personalOperationProgress ?? 0) : 0;
+        }
+        
+        try {
+          const response = await fetch(`/api/pilots/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            showNotification('Pilot updated successfully');
+            closeEditPilotModal();
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to update pilot');
+          }
+        } catch (error) {
+          alert('Error updating pilot');
+        }
+      });
+    }
+    
+    async function deletePilot(id) {
+      if (confirm('Are you sure you want to delete this pilot?')) {
+        try {
+          const response = await fetch(`/api/pilots/${id}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            showNotification('Pilot deleted successfully!');
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            alert('Failed to delete pilot');
+          }
+        } catch (error) {
+          alert('Error deleting pilot');
+        }
+      }
+    }
+    
+    function openPilotRelatedJobsModal(pilotId) {
+      const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === pilotId);
+      const allJobs = <%- JSON.stringify(jobs) %>;
+      
+      if (!pilotData) {
+        alert('Pilot not found');
+        return;
+      }
+      
+      // Filter out Pending jobs
+      const availableJobs = allJobs.filter(job => job.state !== 'Pending');
+      const pilotRelatedJobs = new Set(pilotData.relatedJobs || []);
+      
+      const listHtml = availableJobs.map(job => {
+        const isChecked = pilotRelatedJobs.has(job.id);
+        return `
+          <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #444; border-radius: 3px; background-color: #2a2a2a;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+              <input type="checkbox" value="${job.id}" ${isChecked ? 'checked' : ''} class="pilot-related-job-checkbox">
+              <span style="color: #e0e0e0;">
+                <strong>${job.name}</strong> (${job.state})
+              </span>
+            </label>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('pilotRelatedJobsPilotId').value = pilotId;
+      document.getElementById('pilotRelatedJobsList').innerHTML = listHtml || '<p style="color: #b0b0b0;">No non-Pending jobs available</p>';
+      document.getElementById('pilotRelatedJobsModal').style.display = 'block';
+    }
+    
+    function closePilotRelatedJobsModal() {
+      document.getElementById('pilotRelatedJobsModal').style.display = 'none';
+    }
+    
+    async function savePilotRelatedJobs() {
+      const pilotId = document.getElementById('pilotRelatedJobsPilotId').value;
+      const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === pilotId);
+      
+      if (!pilotData) {
+        alert('Pilot not found');
+        return;
+      }
+      
+      // Get selected job IDs
+      const checkboxes = document.querySelectorAll('.pilot-related-job-checkbox:checked');
+      const relatedJobs = Array.from(checkboxes).map(cb => cb.value);
+      
+      try {
+        const response = await fetch(`/api/pilots/${pilotId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...pilotData,
+            relatedJobs: relatedJobs
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Related jobs updated successfully');
+          closePilotRelatedJobsModal();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update related jobs');
+        }
+      } catch (error) {
+        alert('Error updating related jobs');
+      }
+    }
+    
+    // ==================== PILOT BALANCE HISTORY ====================
+    async function openPilotBalanceHistoryModal(pilotId) {
+      try {
+        // Fetch pilot balance and transaction history from API
+        const response = await fetch(`/api/pilots/${pilotId}/balance`);
+        if (!response.ok) {
+          alert('Failed to load pilot balance history');
+          return;
+        }
+        
+        const data = await response.json();
+        const pilotData = <%- JSON.stringify(pilots) %>.find(p => p.id === pilotId);
+        
+        if (!pilotData) {
+          alert('Pilot not found');
+          return;
+        }
+        
+        // Set pilot ID and balance
+        document.getElementById('pilotBalanceHistoryPilotId').value = pilotId;
+        document.getElementById('pilotBalanceHistoryTotal').textContent = data.balance || 0;
+        
+        // Create transaction list (sorted newest to top)
+        const transactions = data.transactions || [];
+        
+        if (transactions.length === 0) {
+          document.getElementById('pilotBalanceHistoryList').innerHTML = '<p style="color: #b0b0b0;">No transactions associated with this pilot</p>';
+        } else {
+          const listHtml = transactions.map(transaction => {
+            const date = new Date(transaction.date).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+            const amountColor = transaction.amount >= 0 ? '#66BB6A' : '#f44336';
+            const amountSign = transaction.amount >= 0 ? '+' : '';
+            
+            return `
+              <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #444; border-radius: 3px; background-color: #2a2a2a;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                  <input type="checkbox" value="${transaction.id}" checked class="pilot-balance-transaction-checkbox" style="margin-top: 3px; flex-shrink: 0;">
+                  <div style="flex-grow: 1;">
+                    <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>Date:</strong> ${date}</div>
+                    <div style="color: #b0b0b0; margin-bottom: 5px;">
+                      <strong>Amount:</strong> 
+                      <span style="color: ${amountColor}">${amountSign}${transaction.amount}</span>
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+                    </div>
+                    <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>Description:</strong> ${transaction.description}</div>
+                    <div style="color: #b0b0b0;">
+                      <strong>Balance After:</strong> ${transaction.pilotBalance}
+                      <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+                    </div>
+                  </div>
+                </label>
+              </div>
+            `;
+          }).join('');
+          
+          document.getElementById('pilotBalanceHistoryList').innerHTML = listHtml;
+        }
+        
+        document.getElementById('pilotBalanceHistoryModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error loading pilot balance history:', error);
+        alert('Error loading pilot balance history');
+      }
+    }
+    
+    function closePilotBalanceHistoryModal() {
+      document.getElementById('pilotBalanceHistoryModal').style.display = 'none';
+    }
+    
+    async function savePilotBalanceHistory() {
+      const pilotId = document.getElementById('pilotBalanceHistoryPilotId').value;
+      
+      // Get selected transaction IDs
+      const checkboxes = document.querySelectorAll('.pilot-balance-transaction-checkbox:checked');
+      const personalTransactions = Array.from(checkboxes).map(cb => cb.value);
+      
+      try {
+        const response = await fetch(`/api/pilots/${pilotId}/personal-transactions`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personalTransactions: personalTransactions
+          })
+        });
+        
+        if (response.ok) {
+          showNotification('Balance history updated successfully');
+          closePilotBalanceHistoryModal();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update balance history');
+        }
+      } catch (error) {
+        console.error('Error updating balance history:', error);
+        alert('Error updating balance history');
+      }
+    }
+    
+    // ==================== PILOT RESERVES MANAGEMENT ====================
+    let selectedPilotReserves = new Set();
+    let selectedStockReservesForAdd = new Set();
+    
+    async function openPilotReservesModal(pilotId) {
+      try {
+        // Fetch fresh pilot and reserves data
+        const pilotsResponse = await fetch('/api/pilots');
+        const reservesResponse = await fetch('/api/reserves');
+        const pilotsData = await pilotsResponse.json();
+        const reservesData = await reservesResponse.json();
+        
+        const pilot = pilotsData.find(p => p.id === pilotId);
+        if (!pilot) {
+          alert('Pilot not found');
+          return;
+        }
+        
+        // Set pilot ID
+        document.getElementById('pilotReservesModalPilotId').value = pilotId;
+        
+        // Clear previous selection
+        selectedPilotReserves.clear();
+        updateReserveActionButtons();
+        
+        // Build reserves grid
+        const grid = document.getElementById('pilotReservesGrid');
+        
+        if (!pilot.reserves || pilot.reserves.length === 0) {
+          grid.innerHTML = '<p style="color: #888; font-style: italic; margin: 20px 0;">No reserves owned by this pilot.</p>';
+        } else {
+          // Get full reserve details and sort by rank then name
+          const pilotReservesWithDetails = pilot.reserves.map(pr => {
+            const reserve = reservesData.find(r => r.id === pr.reserveId);
+            return reserve ? { ...reserve, deploymentStatus: pr.deploymentStatus } : null;
+          }).filter(r => r !== null)
+            .sort((a, b) => {
+              if (a.rank !== b.rank) return a.rank - b.rank;
+              return a.name.localeCompare(b.name);
+            });
+          
+          // Clear existing content
+          grid.innerHTML = '';
+          
+          // Build cards using safe DOM APIs to avoid XSS
+          pilotReservesWithDetails.forEach(reserve => {
+            const statusColor = reserve.deploymentStatus === 'In Reserve' ? '#66BB6A' : 
+                               reserve.deploymentStatus === 'Deployed' ? '#FFA726' : '#f44336';
+            
+            const card = document.createElement('div');
+            card.className = 'job-item pilot-reserve-card';
+            card.dataset.reserveId = reserve.id;
+            card.style.cursor = 'pointer';
+            card.style.transition = 'all 0.2s';
+            
+            card.addEventListener('click', () => {
+              togglePilotReserveSelection(card, reserve.id);
+            });
+            
+            // Title
+            const titleEl = document.createElement('h3');
+            titleEl.style.color = '#e0e0e0';
+            titleEl.style.marginBottom = '10px';
+            titleEl.textContent = reserve.name;
+            card.appendChild(titleEl);
+            
+            // Rank
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'job-item-field';
+            const rankStrong = document.createElement('strong');
+            rankStrong.textContent = 'Rank:';
+            rankDiv.appendChild(rankStrong);
+            rankDiv.appendChild(document.createTextNode(' R' + reserve.rank));
+            card.appendChild(rankDiv);
+            
+            // Price
+            const priceDiv = document.createElement('div');
+            priceDiv.className = 'job-item-field';
+            const priceStrong = document.createElement('strong');
+            priceStrong.textContent = 'Price:';
+            priceDiv.appendChild(priceStrong);
+            priceDiv.appendChild(document.createTextNode(' ' + reserve.price + ' '));
+            const priceImg = document.createElement('img');
+            priceImg.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
+            priceImg.alt = 'Currency Icon';
+            priceImg.className = 'currency-icon';
+            priceDiv.appendChild(priceImg);
+            card.appendChild(priceDiv);
+            
+            // Status
+            const statusDiv = document.createElement('div');
+            statusDiv.className = 'job-item-field';
+            const statusStrong = document.createElement('strong');
+            statusStrong.textContent = 'Status:';
+            statusDiv.appendChild(statusStrong);
+            statusDiv.appendChild(document.createTextNode(' '));
+            const statusSpan = document.createElement('span');
+            statusSpan.style.color = statusColor;
+            statusSpan.style.fontWeight = 'bold';
+            statusSpan.textContent = reserve.deploymentStatus;
+            statusDiv.appendChild(statusSpan);
+            card.appendChild(statusDiv);
+            
+            // Description (optional)
+            if (reserve.description) {
+              const descDiv = document.createElement('div');
+              descDiv.className = 'job-item-field';
+              const descStrong = document.createElement('strong');
+              descStrong.textContent = 'Description:';
+              descDiv.appendChild(descStrong);
+              descDiv.appendChild(document.createElement('br'));
+              descDiv.appendChild(document.createTextNode(reserve.description));
+              card.appendChild(descDiv);
+            }
+            
+            grid.appendChild(card);
+          });
+        }
+        
+        // Show modal
+        document.getElementById('pilotReservesModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error opening pilot reserves modal:', error);
+        alert('Error loading pilot reserves');
+      }
+    }
+    
+    function closePilotReservesModal() {
+      document.getElementById('pilotReservesModal').style.display = 'none';
+      selectedPilotReserves.clear();
+    }
+    
+    function togglePilotReserveSelection(element, reserveId) {
+      if (selectedPilotReserves.has(reserveId)) {
+        selectedPilotReserves.delete(reserveId);
+        element.style.backgroundColor = '';
+        element.style.border = '';
+      } else {
+        selectedPilotReserves.add(reserveId);
+        element.style.backgroundColor = '#3a3a3a';
+        element.style.border = '2px solid #66BB6A';
+      }
+      updateReserveActionButtons();
+    }
+    
+    function updateReserveActionButtons() {
+      const hasSelection = selectedPilotReserves.size > 0;
+      document.getElementById('setInReserveBtn').disabled = !hasSelection;
+      document.getElementById('setDeployedBtn').disabled = !hasSelection;
+      document.getElementById('setExpendedBtn').disabled = !hasSelection;
+      document.getElementById('removeReservesBtn').disabled = !hasSelection;
+    }
+    
+    async function setSelectedReservesStatus(newStatus) {
+      if (selectedPilotReserves.size === 0) {
+        return;
+      }
+      
+      const pilotId = document.getElementById('pilotReservesModalPilotId').value;
+      
+      try {
+        // Fetch fresh pilot data
+        const pilotsResponse = await fetch('/api/pilots');
+        const pilotsData = await pilotsResponse.json();
+        const pilot = pilotsData.find(p => p.id === pilotId);
+        
+        if (!pilot) {
+          alert('Pilot not found');
+          return;
+        }
+        
+        // Update reserves array
+        const updatedReserves = pilot.reserves.map(pr => {
+          if (selectedPilotReserves.has(pr.reserveId)) {
+            return { ...pr, deploymentStatus: newStatus };
+          }
+          return pr;
+        });
+        
+        const response = await fetch(`/api/pilots/${pilotId}/reserves-management`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reserves: updatedReserves })
+        });
+        
+        if (response.ok) {
+          showNotification(`Deployment status updated to "${newStatus}"`);
+          selectedPilotReserves.clear();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to update reserves');
+        }
+      } catch (error) {
+        console.error('Error updating reserves:', error);
+        alert('Error updating reserves');
+      }
+    }
+    
+    async function removeSelectedReservesFromPilot() {
+      if (selectedPilotReserves.size === 0) {
+        return;
+      }
+      
+      if (!confirm(`Remove ${selectedPilotReserves.size} reserve(s) from this pilot?`)) {
+        return;
+      }
+      
+      const pilotId = document.getElementById('pilotReservesModalPilotId').value;
+      const pilotsData = <%- JSON.stringify(pilots) %>;
+      const pilot = pilotsData.find(p => p.id === pilotId);
+      
+      if (!pilot) {
+        alert('Pilot not found');
+        return;
+      }
+      
+      // Filter out selected reserves
+      const updatedReserves = pilot.reserves.filter(pr => !selectedPilotReserves.has(pr.reserveId));
+      
+      try {
+        const response = await fetch(`/api/pilots/${pilotId}/reserves-management`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reserves: updatedReserves })
+        });
+        
+        if (response.ok) {
+          showNotification('Reserves removed from pilot');
+          selectedPilotReserves.clear();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to remove reserves');
+        }
+      } catch (error) {
+        console.error('Error removing reserves:', error);
+        alert('Error removing reserves');
+      }
+    }
+    
+    async function openAddReservesToPilotModal() {
+      try {
+        const reservesData = <%- JSON.stringify(reserves) %>;
+        
+        // Clear previous selection and filters
+        selectedStockReservesForAdd.clear();
+        updateAddStockReservesButton();
+        
+        // Reset filters
+        document.getElementById('pilotAddReserveSearchInput').value = '';
+        document.querySelectorAll('#addReservesToPilotModal .filter-pill').forEach(pill => {
+          pill.classList.remove('active');
+        });
+        document.getElementById('pilotAddFilterAll').classList.add('active');
+        document.getElementById('pilotAddHideDefaultPill').dataset.hideDefault = 'false';
+        document.getElementById('pilotAddHideDefaultPill').classList.remove('active');
+        
+        // Build reserves grid - show ALL reserves
+        const grid = document.getElementById('addReservesStockGrid');
+        
+        if (!reservesData || reservesData.length === 0) {
+          grid.innerHTML = '<p style="color: #888; font-style: italic; margin: 20px 0;">No reserves available.</p>';
+        } else {
+          // Sort by rank then name
+          const sortedReserves = [...reservesData].sort((a, b) => {
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            return a.name.localeCompare(b.name);
+          });
+          
+          // Clear existing content
+          grid.innerHTML = '';
+          
+          // Build cards using safe DOM APIs to avoid XSS
+          sortedReserves.forEach(reserve => {
+            const card = document.createElement('div');
+            card.className = 'job-item stock-reserve-card';
+            card.dataset.reserveId = reserve.id;
+            card.dataset.rank = String(reserve.rank);
+            card.dataset.isCustom = String(reserve.isCustom);
+            card.dataset.name = (reserve.name || '').toLowerCase();
+            card.style.cursor = 'pointer';
+            card.style.transition = 'all 0.2s';
+            
+            card.addEventListener('click', () => {
+              toggleStockReserveForAdd(card, reserve.id);
+            });
+            
+            // Title
+            const titleEl = document.createElement('h3');
+            titleEl.style.color = '#e0e0e0';
+            titleEl.style.marginBottom = '10px';
+            titleEl.textContent = reserve.name;
+            card.appendChild(titleEl);
+            
+            // Rank
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'job-item-field';
+            const rankStrong = document.createElement('strong');
+            rankStrong.textContent = 'Rank:';
+            rankDiv.appendChild(rankStrong);
+            rankDiv.appendChild(document.createTextNode(' R' + reserve.rank));
+            card.appendChild(rankDiv);
+            
+            // Price
+            const priceDiv = document.createElement('div');
+            priceDiv.className = 'job-item-field';
+            const priceStrong = document.createElement('strong');
+            priceStrong.textContent = 'Price:';
+            priceDiv.appendChild(priceStrong);
+            priceDiv.appendChild(document.createTextNode(' ' + reserve.price + ' '));
+            const priceImg = document.createElement('img');
+            priceImg.src = '/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>';
+            priceImg.alt = 'Currency Icon';
+            priceImg.className = 'currency-icon';
+            priceDiv.appendChild(priceImg);
+            card.appendChild(priceDiv);
+            
+            // Description (optional)
+            if (reserve.description) {
+              const descDiv = document.createElement('div');
+              descDiv.className = 'job-item-field';
+              const descStrong = document.createElement('strong');
+              descStrong.textContent = 'Description:';
+              descDiv.appendChild(descStrong);
+              descDiv.appendChild(document.createElement('br'));
+              descDiv.appendChild(document.createTextNode(reserve.description));
+              card.appendChild(descDiv);
+            }
+            
+            // Type
+            const typeDiv = document.createElement('div');
+            typeDiv.className = 'job-item-field';
+            const typeStrong = document.createElement('strong');
+            typeStrong.textContent = 'Type:';
+            typeDiv.appendChild(typeStrong);
+            typeDiv.appendChild(document.createTextNode(' ' + (reserve.isCustom ? 'Custom' : 'Default')));
+            card.appendChild(typeDiv);
+            
+            grid.appendChild(card);
+          });
+        }
+        
+        // Show modal
+        document.getElementById('addReservesToPilotModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error opening add reserves modal:', error);
+        alert('Error loading reserves');
+      }
+    }
+    
+    function closeAddReservesToPilotModal() {
+      document.getElementById('addReservesToPilotModal').style.display = 'none';
+      selectedStockReservesForAdd.clear();
+    }
+    
+    function filterPilotAddReserves(rank, event) {
+      // Update active pill
+      document.querySelectorAll('#addReservesToPilotModal .filter-pill[data-rank]').forEach(pill => {
+        pill.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Apply filter
+      const cards = document.querySelectorAll('#addReservesStockGrid .stock-reserve-card');
+      cards.forEach(card => {
+        const cardRank = card.dataset.rank;
+        const hideDefault = document.getElementById('pilotAddHideDefaultPill').dataset.hideDefault === 'true';
+        const isCustom = card.dataset.isCustom === 'true';
+        const searchValue = document.getElementById('pilotAddReserveSearchInput').value.toLowerCase();
+        const cardName = card.dataset.name;
+        
+        let shouldShow = true;
+        
+        // Rank filter
+        if (rank !== 'all' && cardRank !== rank) {
+          shouldShow = false;
+        }
+        
+        // Hide default filter
+        if (hideDefault && !isCustom) {
+          shouldShow = false;
+        }
+        
+        // Search filter
+        if (searchValue && !cardName.includes(searchValue)) {
+          shouldShow = false;
+        }
+        
+        card.style.display = shouldShow ? '' : 'none';
+      });
+    }
+    
+    function togglePilotAddHideDefault(event) {
+      const currentState = event.target.dataset.hideDefault === 'true';
+      event.target.dataset.hideDefault = currentState ? 'false' : 'true';
+      event.target.classList.toggle('active');
+      
+      // Re-apply current rank filter
+      const activeRankPill = document.querySelector('#addReservesToPilotModal .filter-pill[data-rank].active');
+      const currentRank = activeRankPill ? activeRankPill.dataset.rank : 'all';
+      filterPilotAddReserves(currentRank, activeRankPill || event);
+    }
+    
+    function searchPilotAddReserves(searchValue) {
+      searchValue = searchValue.toLowerCase();
+      
+      // Re-apply current filters
+      const activeRankPill = document.querySelector('#addReservesToPilotModal .filter-pill[data-rank].active');
+      const currentRank = activeRankPill ? activeRankPill.dataset.rank : 'all';
+      
+      const cards = document.querySelectorAll('#addReservesStockGrid .stock-reserve-card');
+      cards.forEach(card => {
+        const cardRank = card.dataset.rank;
+        const hideDefault = document.getElementById('pilotAddHideDefaultPill').dataset.hideDefault === 'true';
+        const isCustom = card.dataset.isCustom === 'true';
+        const cardName = card.dataset.name;
+        
+        let shouldShow = true;
+        
+        // Rank filter
+        if (currentRank !== 'all' && cardRank !== currentRank) {
+          shouldShow = false;
+        }
+        
+        // Hide default filter
+        if (hideDefault && !isCustom) {
+          shouldShow = false;
+        }
+        
+        // Search filter
+        if (searchValue && !cardName.includes(searchValue)) {
+          shouldShow = false;
+        }
+        
+        card.style.display = shouldShow ? '' : 'none';
+      });
+    }
+    
+    function toggleStockReserveForAdd(element, reserveId) {
+      if (selectedStockReservesForAdd.has(reserveId)) {
+        selectedStockReservesForAdd.delete(reserveId);
+        element.style.backgroundColor = '';
+        element.style.border = '';
+      } else {
+        selectedStockReservesForAdd.add(reserveId);
+        element.style.backgroundColor = '#3a3a3a';
+        element.style.border = '2px solid #66BB6A';
+      }
+      updateAddStockReservesButton();
+    }
+    
+    function updateAddStockReservesButton() {
+      const hasSelection = selectedStockReservesForAdd.size > 0;
+      document.getElementById('addStockReservesBtn').disabled = !hasSelection;
+    }
+    
+    async function addSelectedStockReservesToPilot() {
+      if (selectedStockReservesForAdd.size === 0) {
+        return;
+      }
+      
+      const pilotId = document.getElementById('pilotReservesModalPilotId').value;
+      const pilotsData = <%- JSON.stringify(pilots) %>;
+      const pilot = pilotsData.find(p => p.id === pilotId);
+      
+      if (!pilot) {
+        alert('Pilot not found');
+        return;
+      }
+      
+      // Add new reserves with "In Reserve" status
+      const newReserves = Array.from(selectedStockReservesForAdd).map(reserveId => ({
+        reserveId: reserveId,
+        deploymentStatus: 'In Reserve'
+      }));
+      
+      const updatedReserves = [...pilot.reserves, ...newReserves];
+      
+      try {
+        const response = await fetch(`/api/pilots/${pilotId}/reserves-management`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reserves: updatedReserves })
+        });
+        
+        if (response.ok) {
+          showNotification(`${newReserves.length} reserve(s) added to pilot`);
+          closeAddReservesToPilotModal();
+          selectedPilotReserves.clear();
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to add reserves');
+        }
+      } catch (error) {
+        console.error('Error adding reserves:', error);
+        alert('Error adding reserves');
+      }
+    }
+    
+    // ==================== FACTION RELATED JOBS ====================
+    function openFactionRelatedJobsModal(factionId) {
+      const allJobs = <%- JSON.stringify(jobs) %>;
+      const allPilots = <%- JSON.stringify(pilots) %>;
+      const factionData = <%- JSON.stringify(factions) %>.find(f => f.id === factionId);
+      
+      if (!factionData) {
+        alert('Faction not found');
+        return;
+      }
+      
+      // Filter jobs related to this faction
+      const relatedJobs = allJobs.filter(job => job.factionId === factionId);
+      
+      if (relatedJobs.length === 0) {
+        document.getElementById('factionRelatedJobsList').innerHTML = '<p style="color: #b0b0b0;">No jobs related to this faction</p>';
+      } else {
+        const listHtml = relatedJobs.map(job => {
+          // Find pilots related to this job
+          const relatedPilots = allPilots.filter(pilot => 
+            (pilot.relatedJobs || []).includes(job.id)
+          ).map(p => p.callsign).join(', ') || 'None';
+          
+          const stateClass = job.state ? job.state.toLowerCase() : 'pending';
+          
+          return `
+            <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #444; border-radius: 3px; background-color: #1a1a1a;">
+              <h4 style="color: #e0e0e0; margin-bottom: 8px;">${job.name}</h4>
+              <div style="color: #b0b0b0; margin-bottom: 5px;"><strong>State:</strong> <span class="state-badge state-badge-${stateClass}">${job.state}</span></div>
+              <div style="color: #b0b0b0;"><strong>Related Pilots:</strong> ${relatedPilots}</div>
+            </div>
+          `;
+        }).join('');
+        
+        document.getElementById('factionRelatedJobsList').innerHTML = listHtml;
+      }
+      
+      document.getElementById('factionRelatedJobsModal').style.display = 'block';
+    }
+    
+    function closeFactionRelatedJobsModal() {
+      document.getElementById('factionRelatedJobsModal').style.display = 'none';
+    }
+    
+    // ==================== PROGRESS ALL JOBS ====================
+    function showProgressAllJobsModal() {
+      const allJobs = <%- JSON.stringify(jobs) %>;
+      
+      // Filter jobs that will be affected (Active → Ignored, Pending → Active)
+      const affectedJobs = allJobs.filter(job => job.state === 'Active' || job.state === 'Pending');
+      
+      // Populate the job list
+      const jobListDiv = document.getElementById('progressAllJobsList');
+      if (affectedJobs.length === 0) {
+        jobListDiv.innerHTML = '<p style="color: #999; text-align: center;">No jobs will be affected.</p>';
+      } else {
+        jobListDiv.innerHTML = affectedJobs.map(job => {
+          const currentState = job.state || 'Pending';
+          const newState = currentState === 'Active' ? 'Ignored' : 'Active';
+          const currentStateClass = currentState.toLowerCase();
+          const newStateClass = newState.toLowerCase();
+          const factionName = job.faction ? job.faction.title : 'FIELD_NULL';
+          
+          return `
+            <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #444; border-radius: 3px; background-color: #2a2a2a;">
+              <div style="margin-bottom: 5px;">
+                <strong style="color: #e0e0e0;">${job.name}</strong>
+              </div>
+              <div style="margin-bottom: 5px; color: #b0b0b0;">
+                <strong>Faction:</strong> ${factionName}
+              </div>
+              <div style="color: #b0b0b0;">
+                <strong>State:</strong> 
+                <span class="state-badge state-badge-${currentStateClass}">${currentState}</span>
+                <span style="margin: 0 5px;">→</span>
+                <span class="state-badge state-badge-${newStateClass}">${newState}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      document.getElementById('progressAllJobsModal').style.display = 'block';
+    }
+    
+    function closeProgressAllJobsModal() {
+      document.getElementById('progressAllJobsModal').style.display = 'none';
+    }
+    
+    async function confirmProgressAllJobs() {
+      try {
+        const response = await fetch('/api/jobs/progress-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          closeProgressAllJobsModal();
+          showNotification(`Jobs progressed successfully! ${result.newlyActiveJobs} jobs became active, ${result.pilotsUpdated} active pilots updated.`);
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to progress jobs');
+        }
+      } catch (error) {
+        alert('Error progressing jobs');
+      }
+    }
+    
+    // ==================== PROGRESS OPERATION FOR ACTIVE PILOTS ====================
+    function showProgressOperationModal() {
+      // Get all active pilots from the DOM
+      const pilotsList = document.getElementById('pilotsList');
+      const pilotItems = pilotsList.querySelectorAll('.job-item');
+      const activePilots = [];
+      
+      pilotItems.forEach(item => {
+        const isActive = item.querySelector('.state-badge-active') !== null;
+        if (isActive) {
+          const name = item.querySelector('h3').textContent.split('(')[0].trim();
+          const callsignMatch = item.querySelector('h3').textContent.match(/\("([^"]+)"\)/);
+          const callsign = callsignMatch ? callsignMatch[1] : '';
+          
+          const llField = Array.from(item.querySelectorAll('.job-item-field')).find(field => 
+            field.textContent.includes('License Level:')
+          );
+          const ll = llField ? parseInt(llField.textContent.split(':')[1].trim()) : 0;
+          
+          const progressField = Array.from(item.querySelectorAll('.job-item-field')).find(field => 
+            field.textContent.includes('Personal Operation Progress:')
+          );
+          const currentProgress = progressField ? parseInt(progressField.textContent.split(':')[1].trim()) : 0;
+          const newProgress = currentProgress >= 3 ? 0 : currentProgress + 1;
+          
+          activePilots.push({ name, callsign, ll, currentProgress, newProgress });
+        }
+      });
+      
+      // Populate the pilot list in the modal
+      const pilotListDiv = document.getElementById('progressOperationPilotList');
+      if (activePilots.length === 0) {
+        pilotListDiv.innerHTML = '<p style="color: #999; text-align: center;">No active pilots found.</p>';
+      } else {
+        pilotListDiv.innerHTML = activePilots.map(pilot => `
+          <div style="margin-bottom: 10px; padding: 10px; border-bottom: 1px solid #333;">
+            <div><strong>${pilot.name} ("${pilot.callsign}")</strong></div>
+            <div style="margin-top: 5px; font-size: 0.9em;">
+              <span style="margin-right: 15px;">License Level: ${pilot.ll}</span>
+              <span>Operation Progress: ${pilot.currentProgress} → ${pilot.newProgress}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      document.getElementById('progressOperationModal').style.display = 'block';
+    }
+    
+    function closeProgressOperationModal() {
+      document.getElementById('progressOperationModal').style.display = 'none';
+    }
+    
+    async function confirmProgressOperation() {
+      try {
+        const response = await fetch('/api/pilots/progress-operation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          closeProgressOperationModal();
+          
+          let message = `Operation progressed successfully! ${result.pilotsProgressed} active pilot(s) updated.`;
+          if (result.resetPilots && result.resetPilots.length > 0) {
+            const resetNames = result.resetPilots.map(p => `${p.name} ("${p.callsign}")`).join(', ');
+            message += ` Reset to 0: ${resetNames}`;
+          }
+          
+          showNotification(message);
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to progress operation');
+        }
+      } catch (error) {
+        alert('Error progressing operation');
+      }
+    }
+    
+    // Update modal close handlers
+    window.onclick = function(event) {
+      const modal = document.getElementById('editModal');
+      const factionModal = document.getElementById('editFactionModal');
+      const transactionModal = document.getElementById('editTransactionModal');
+      const pilotModal = document.getElementById('editPilotModal');
+      const pilotRelatedJobsModal = document.getElementById('pilotRelatedJobsModal');
+      const factionRelatedJobsModal = document.getElementById('factionRelatedJobsModal');
+      const progressAllJobsModal = document.getElementById('progressAllJobsModal');
+      const progressOperationModal = document.getElementById('progressOperationModal');
+      const createReserveModal = document.getElementById('createReserveModal');
+      const editReserveModal = document.getElementById('editReserveModal');
+      
+      if (event.target === modal) {
+        closeEditModal();
+      }
+      if (event.target === factionModal) {
+        closeEditFactionModal();
+      }
+      if (event.target === transactionModal) {
+        closeEditTransactionModal();
+      }
+      if (event.target === pilotModal) {
+        closeEditPilotModal();
+      }
+      if (event.target === pilotRelatedJobsModal) {
+        closePilotRelatedJobsModal();
+      }
+      if (event.target === factionRelatedJobsModal) {
+        closeFactionRelatedJobsModal();
+      }
+      if (event.target === progressAllJobsModal) {
+        closeProgressAllJobsModal();
+      }
+      if (event.target === progressOperationModal) {
+        closeProgressOperationModal();
+      }
+      if (event.target === createReserveModal) {
+        closeCreateReserveModal();
+      }
+      if (event.target === editReserveModal) {
+        closeEditReserveModal();
+      }
+    };
+    
+    // ==================== STORE CONFIG MANAGEMENT ====================
+    
+    // Global state for available reserves selection
+    let selectedAvailableReserveId = null;
+    let selectedStockReserveIds = [];
+    let currentRankFilter = 'all';
+    let hideDefaultReservesFilter = false;
+    let currentSearchQuery = '';
+    
+    // Resupply Items Form Submit
+    if (document.getElementById('resupplyItemsForm')) {
+      document.getElementById('resupplyItemsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        // Build resupply items array
+        const resupplyItems = [];
+        const itemCount = 3; // Fixed count
+        for (let i = 0; i < itemCount; i++) {
+          resupplyItems.push({
+            id: formData.get(`items[${i}][id]`),
+            name: formData.get(`items[${i}][name]`),
+            price: parseInt(formData.get(`items[${i}][price]`)),
+            enabled: formData.get(`items[${i}][enabled]`) === 'on'
+          });
+        }
+        
+        try {
+          const response = await fetch('/api/store-config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resupplyItems })
+          });
+          
+          if (response.ok) {
+            showNotification('Resupply settings saved successfully!');
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to save resupply settings');
+          }
+        } catch (error) {
+          alert('Error saving resupply settings');
+        }
+      });
+    }
+    
+    // Toggle stock reserve selection
+    function toggleStockReserveSelection(card, reserveId) {
+      const checkbox = card.querySelector('.stock-reserve-checkbox');
+      
+      // Toggle checkbox
+      checkbox.checked = !checkbox.checked;
+      
+      // Update selected IDs array
+      if (checkbox.checked) {
+        if (!selectedStockReserveIds.includes(reserveId)) {
+          selectedStockReserveIds.push(reserveId);
+        }
+        card.style.borderColor = '#66BB6A';
+        card.style.backgroundColor = '#2a3a2a';
+      } else {
+        selectedStockReserveIds = selectedStockReserveIds.filter(id => id !== reserveId);
+        card.style.borderColor = '#444';
+        card.style.backgroundColor = '#1a1a1a';
+      }
+      
+      // Update button states
+      updateStockRemoveButtons();
+    }
+    
+    // Update stock remove button states
+    function updateStockRemoveButtons() {
+      const removeBtn = document.getElementById('removeSelectedBtn');
+      const removeAllBtn = document.getElementById('removeAllSelectedBtn');
+      const hasSelection = selectedStockReserveIds.length > 0;
+      
+      if (removeBtn) removeBtn.disabled = !hasSelection;
+      if (removeAllBtn) removeAllBtn.disabled = !hasSelection;
+    }
+    
+    // Remove selected reserves from stock
+    async function removeSelectedReserves(removeAll) {
+      if (selectedStockReserveIds.length === 0) {
+        alert('No reserves selected');
+        return;
+      }
+      
+      const action = removeAll ? 'Remove all selected reserves' : 'Remove first occurrence of selected reserves';
+      if (!confirm(`${action} from stock?`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/store-config/remove-stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            reserveIds: selectedStockReserveIds,
+            removeAll 
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const message = removeAll 
+            ? `Removed ${data.removedCount} reserve(s) from stock`
+            : 'Reserve removed from stock';
+          showNotification(message);
+          selectedStockReserveIds = [];
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to remove reserves from stock');
+        }
+      } catch (error) {
+        alert('Error removing reserves from stock');
+      }
+    }
+    
+    // Select available reserve
+    function selectAvailableReserve(card, reserveId) {
+      // Deselect all cards
+      document.querySelectorAll('.available-reserve-card').forEach(c => {
+        c.style.borderColor = '#444';
+        c.style.backgroundColor = '#1a1a1a';
+      });
+      
+      // Select clicked card
+      card.style.borderColor = '#66BB6A';
+      card.style.backgroundColor = '#2a3a2a';
+      selectedAvailableReserveId = reserveId;
+      
+      // Enable/disable action buttons
+      updateAvailableReserveButtons();
+    }
+    
+    // Update available reserve action buttons
+    function updateAvailableReserveButtons() {
+      const editBtn = document.getElementById('editReserveBtn');
+      const deleteBtn = document.getElementById('deleteReserveBtn');
+      const addToStockBtn = document.getElementById('addToStockBtn');
+      const hasSelection = selectedAvailableReserveId !== null;
+      
+      if (editBtn) editBtn.disabled = !hasSelection;
+      if (deleteBtn) deleteBtn.disabled = !hasSelection;
+      if (addToStockBtn) addToStockBtn.disabled = !hasSelection;
+    }
+    
+    // Filter available reserves
+    function filterAvailableReserves(rank, event) {
+      // Update filter pills (except Hide Default which is independent)
+      document.querySelectorAll('.filter-pill[data-rank]').forEach(pill => {
+        pill.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      currentRankFilter = rank;
+      applyReserveFilters();
+    }
+    
+    // Toggle hide default reserves
+    function toggleHideDefaultReserves(event) {
+      hideDefaultReservesFilter = !hideDefaultReservesFilter;
+      
+      if (hideDefaultReservesFilter) {
+        event.target.classList.add('active');
+      } else {
+        event.target.classList.remove('active');
+      }
+      
+      applyReserveFilters();
+    }
+    
+    // Apply both filters to available reserves
+    function applyReserveFilters() {
+      const cards = document.querySelectorAll('.available-reserve-card');
+      
+      cards.forEach(card => {
+        const cardRank = card.getAttribute('data-rank');
+        const cardIsCustom = card.getAttribute('data-is-custom') === 'true';
+        const cardName = card.querySelector('h3').textContent.trim();
+        
+        let show = true;
+        
+        // Apply rank filter
+        if (currentRankFilter !== 'all' && cardRank !== currentRankFilter) {
+          show = false;
+        }
+        
+        // Apply hide default filter
+        if (hideDefaultReservesFilter && !cardIsCustom) {
+          show = false;
+        }
+        
+        // Apply search filter
+        if (currentSearchQuery && !cardName.toLowerCase().includes(currentSearchQuery.toLowerCase())) {
+          show = false;
+        }
+        
+        card.style.display = show ? '' : 'none';
+      });
+    }
+    
+    // Search available reserves by name
+    function searchAvailableReserves(query) {
+      currentSearchQuery = query;
+      applyReserveFilters();
+    }
+    
+    // Add random reserve from current view
+    async function addRandomReserve() {
+      try {
+        const response = await fetch('/api/store-config/add-random', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rankFilter: currentRankFilter,
+            hideDefaultReserves: hideDefaultReservesFilter
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          showNotification(`${data.addedReserve.name} Reserve was added to the Reserve Stock`);
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to add random reserve');
+        }
+      } catch (error) {
+        alert('Error adding random reserve');
+      }
+    }
+    
+    // Add selected reserve to stock
+    async function addSelectedToStock() {
+      if (!selectedAvailableReserveId) {
+        alert('No reserve selected');
+        return;
+      }
+      
+      try {
+        const storeConfig = await fetch('/api/store-config').then(r => r.json());
+        const currentStock = storeConfig.currentStock || [];
+        currentStock.push(selectedAvailableReserveId);
+        
+        const response = await fetch('/api/store-config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentStock })
+        });
+        
+        if (response.ok) {
+          showNotification('Reserve added to stock');
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to add reserve to stock');
+        }
+      } catch (error) {
+        alert('Error adding reserve to stock');
+      }
+    }
+    
+    // Create Reserve Modal
+    function openCreateReserveModal() {
+      document.getElementById('createReserveModal').style.display = 'block';
+    }
+    
+    function closeCreateReserveModal() {
+      document.getElementById('createReserveModal').style.display = 'none';
+    }
+    
+    if (document.getElementById('createReserveForm')) {
+      document.getElementById('createReserveForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        try {
+          const response = await fetch('/api/reserves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rank: parseInt(data.rank),
+              name: data.name,
+              price: parseInt(data.price),
+              description: data.description || '',
+              adminLog: data.adminLog || ''
+            })
+          });
+          
+          if (response.ok) {
+            showNotification('Reserve created successfully!');
+            closeCreateReserveModal();
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to create reserve');
+          }
+        } catch (error) {
+          alert('Error creating reserve');
+        }
+      });
+    }
+    
+    // Edit Reserve Modal
+    async function openEditReserveModal() {
+      if (!selectedAvailableReserveId) {
+        alert('No reserve selected');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/reserves');
+        const reserves = await response.json();
+        const reserve = reserves.find(r => r.id === selectedAvailableReserveId);
+        
+        if (!reserve) {
+          alert('Reserve not found');
+          return;
+        }
+        
+        document.getElementById('editReserveId').value = reserve.id;
+        document.getElementById('editReserveRank').value = reserve.rank;
+        document.getElementById('editReserveName').value = reserve.name;
+        document.getElementById('editReservePrice').value = reserve.price;
+        document.getElementById('editReserveDescription').value = reserve.description || '';
+        document.getElementById('editReserveAdminLog').value = reserve.adminLog || '';
+        
+        document.getElementById('editReserveModal').style.display = 'block';
+      } catch (error) {
+        alert('Error loading reserve data');
+      }
+    }
+    
+    function closeEditReserveModal() {
+      document.getElementById('editReserveModal').style.display = 'none';
+    }
+    
+    if (document.getElementById('editReserveForm')) {
+      document.getElementById('editReserveForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        const id = document.getElementById('editReserveId').value;
+        
+        try {
+          const response = await fetch(`/api/reserves/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rank: parseInt(data.rank),
+              name: data.name,
+              price: parseInt(data.price),
+              description: data.description || '',
+              adminLog: data.adminLog || ''
+            })
+          });
+          
+          if (response.ok) {
+            showNotification('Reserve updated successfully');
+            closeEditReserveModal();
+            saveScrollPositionForReload();
+            setTimeout(() => location.reload(), 400);
+          } else {
+            const errorData = await response.json();
+            alert(errorData.message || 'Failed to update reserve');
+          }
+        } catch (error) {
+          alert('Error updating reserve');
+        }
+      });
+    }
+    
+    // Delete Reserve
+    async function deleteSelectedReserve() {
+      if (!selectedAvailableReserveId) {
+        alert('No reserve selected');
+        return;
+      }
+      
+      if (!confirm('Are you sure you want to delete this reserve? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/reserves/${selectedAvailableReserveId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          showNotification('Reserve deleted successfully!');
+          selectedAvailableReserveId = null;
+          saveScrollPositionForReload();
+          setTimeout(() => location.reload(), 400);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to delete reserve');
+        }
+      } catch (error) {
+        alert('Error deleting reserve');
+      }
+    }
+    
+    // ==================== TAB PERSISTENCE AND SCROLL RESTORATION ====================
+    
+    // Constants
+    const SCROLL_RESTORE_TIMEOUT_MS = 5000; // Only restore scroll if saved within last 5 seconds
+    
+    // Helper function to save scroll position before form submission reloads
+    function saveScrollPositionForReload() {
+      sessionStorage.setItem('adminScrollY', window.scrollY.toString());
+      sessionStorage.setItem('adminScrollSaved', Date.now().toString());
+    }
+    
+    // Initialize tab from URL hash on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get tab from URL hash (e.g., #jobs -> 'jobs')
+      const hash = window.location.hash.substring(1);
+      const validTabs = ['overview', 'transactions', 'jobs', 'base', 'pilots', 'factions', 'store', 'vote'];
+      
+      if (hash && validTabs.includes(hash)) {
+        // Find the button for this tab by matching the tab name in onclick attribute using a direct selector
+        const tabButton = document.querySelector(`.tab-button[onclick*="switchTab('${hash}'"]`);
+        
+        if (tabButton) {
+          // Use the existing switchTab function to avoid duplication
+          switchTab(hash, tabButton);
+        }
+      }
+      
+      // Restore scroll position using requestAnimationFrame for better timing
+      const savedScrollY = sessionStorage.getItem('adminScrollY');
+      const savedTime = sessionStorage.getItem('adminScrollSaved');
+      
+      // Only restore if saved recently to avoid restoring on intentional navigation
+      if (savedScrollY !== null && savedTime !== null) {
+        const parsedTime = parseInt(savedTime, 10);
+        const parsedScrollY = parseInt(savedScrollY, 10);
+        
+        // Validate that parsed values are valid numbers
+        if (Number.isFinite(parsedTime) && Number.isFinite(parsedScrollY)) {
+          const timeSinceSave = Date.now() - parsedTime;
+          if (timeSinceSave < SCROLL_RESTORE_TIMEOUT_MS) {
+            // Use requestAnimationFrame to ensure content is rendered
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                window.scrollTo(0, parsedScrollY);
+                sessionStorage.removeItem('adminScrollY');
+                sessionStorage.removeItem('adminScrollSaved');
+              });
+            });
+          } else {
+            // Clear stale data
+            sessionStorage.removeItem('adminScrollY');
+            sessionStorage.removeItem('adminScrollSaved');
+          }
+        } else {
+          // Clear invalid data
+          sessionStorage.removeItem('adminScrollY');
+          sessionStorage.removeItem('adminScrollSaved');
+        }
+      }
+    });
+  </script>

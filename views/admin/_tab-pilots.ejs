@@ -1,0 +1,98 @@
+  <div id="pilots-tab" class="tab-content">
+    <div class="add-job-section">
+      <h2>Add New Pilot</h2>
+      <form id="addPilotForm">
+        <div class="form-group">
+          <label for="pilotName">Name</label>
+          <input type="text" id="pilotName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="pilotCallsign">Callsign</label>
+          <input type="text" id="pilotCallsign" name="callsign" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="pilotLL">License Level (0-12)</label>
+          <input type="number" id="pilotLL" name="ll" min="0" max="12" value="0" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="pilotNotes">Notes (multiline)</label>
+          <textarea id="pilotNotes" name="notes" rows="4" placeholder="Optional"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="pilotAdminLog">Admin Log</label>
+          <textarea id="pilotAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this pilot"></textarea>
+        </div>
+
+        <div class="form-group" id="addPilotPersonalOperationProgressGroup" style="display: <%= settings.openTable ? 'block' : 'none' %>">
+          <label for="pilotPersonalOperationProgress">Personal Operation Progress</label>
+          <select id="pilotPersonalOperationProgress" name="personalOperationProgress">
+            <option value="0" selected>0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; cursor: pointer;">
+            <span style="display: inline; margin-right: 8px;">Active:</span>
+            <input type="checkbox" id="pilotActive" name="active" value="true" checked style="width: auto;">
+          </label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-add-job">Add Pilot</button>
+      </form>
+    </div>
+
+    <div class="jobs-list">
+      <h2>Existing Pilots</h2>
+      
+      <!-- Progress Operation Button (only visible when openTable is ON) -->
+      <div id="progressOperationButtonContainer" style="margin-bottom: 20px; display: <%= settings.openTable ? 'block' : 'none' %>;">
+        <button class="btn btn-neutral" onclick="showProgressOperationModal()" style="font-size: 14px; padding: 10px 20px;">
+          Progress Operation Track for Active Pilots
+        </button>
+      </div>
+      
+      <div id="pilotsList">
+        <% if (pilots.length === 0) { %>
+          <p style="color: #b0b0b0;">No pilots created yet.</p>
+        <% } else { %>
+          <% pilots.forEach(pilot => { %>
+            <div class="job-item" data-id="<%= pilot.id %>">
+              <h3><%= pilot.name %> ("<%= pilot.callsign %>") <% if (pilot.active) { %><span class="state-badge state-badge-active">ACTIVE</span><% } else { %><span class="state-badge state-badge-ignored">INACTIVE</span><% } %></h3>
+              <div class="job-item-field"><strong>License Level:</strong> <%= pilot.ll %></div>
+              <div class="job-item-field">
+                <strong>Balance:</strong> 
+                <span class="pilot-balance" data-pilot-id="<%= pilot.id %>"><%= pilot.balance || 0 %></span>
+                <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+              </div>
+              <% if (pilot.notes) { %>
+                <div class="job-item-field"><strong>Notes:</strong><br><pre style="margin: 5px 0; font-family: inherit; white-space: pre-wrap;"><%= pilot.notes %></pre></div>
+              <% } %>
+              <% if (pilot.adminLog) { %>
+                <div class="job-item-field"><strong>Admin Log:</strong> <%= pilot.adminLog %></div>
+              <% } %>
+              <div class="job-item-field">
+                <strong>Related Jobs:</strong> <%= (pilot.relatedJobs || []).length %> job(s)
+              </div>
+              <div class="job-item-field pilot-personal-operation-progress-display" style="display: <%= settings.openTable ? 'block' : 'none' %>">
+                <strong>Personal Operation Progress:</strong> <%= pilot.personalOperationProgress ?? 0 %>
+              </div>
+              <div class="job-item-actions">
+                <button class="btn btn-edit" onclick="editPilot('<%= pilot.id %>')">Edit</button>
+                <button class="btn btn-neutral" onclick="openPilotRelatedJobsModal('<%= pilot.id %>')">Related Jobs</button>
+                <button class="btn btn-neutral" onclick="openPilotBalanceHistoryModal('<%= pilot.id %>')">Balance History</button>
+                <button class="btn btn-neutral" onclick="openPilotReservesModal('<%= pilot.id %>')">Edit Reserves</button>
+                <button class="btn btn-delete" onclick="deletePilot('<%= pilot.id %>')">Delete</button>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </div>

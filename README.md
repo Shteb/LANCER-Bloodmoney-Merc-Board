@@ -2,7 +2,7 @@
 
 A terminal-styled web application for managing LANCER RPG missions and your mercenary company. Features password-protected access with separate client and admin interfaces for managing jobs, base modules, factions, pilots, reserves, and currency (Manna).
 
-## How do I use this myself?
+## How do I run this myself?
 As this is a standalone web app, you can either:
 - Download it and run it yourself locally, or
 - Host it online using a free website hosting service [**using this guide**](https://github.com/Shteb/LANCER-Bloodmoney-Merc-Board/blob/main/WEBHOSTING_README.md).
@@ -52,6 +52,9 @@ I'd recommend the online hosting guide for most people. Otherwise, hosting local
 For most people, download the latest release and transfer your `data` folder over to the new version.
 
 For those using git, at the same folder level you ran `npm install`, now run `git pull`.
+
+# User Guide
+For a full guide on how to use this application, please see [FULL USER GUIDE.md](FULL%20USER%20GUIDE.md).
 
 ### Login
 <img width="1139" height="568" alt="image" src="https://github.com/user-attachments/assets/d6f08521-b564-4cba-917a-8fe22a6298c3" />

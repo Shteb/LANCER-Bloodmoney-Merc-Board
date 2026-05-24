@@ -1,0 +1,160 @@
+  <div id="base-tab" class="tab-content">
+    <div class="settings-section">
+      <h2>Base Facility Configuration</h2>
+      <p style="color: #b0b0b0; margin-bottom: 20px;">Configure base facilities (3 Core, 6 Major, 6 Minor slots). Manage facility purchases, upgrades, and slot assignments.</p>
+      
+      <!-- Facility Cost Modifier Section -->
+      <div class="form-group" style="margin-bottom: 30px; max-width: 500px;">
+        <label for="facilityCostModifier">Facility Cost Modifier</label>
+        <p style="color: #999; font-size: 12px; margin: 5px 0 10px 0;">Prices are tuned for 4 players. Recommended to add or take 20% for each extra or missing player respectively.</p>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="number" 
+                 id="facilityCostModifier" 
+                 name="facilityCostModifier" 
+                 value="<%= settings.facilityCostModifier || 0 %>" 
+                 min="-100" 
+                 max="300" 
+                 step="5"
+                 style="width: 100px;">
+          <span style="color: #e0e0e0;">%</span>
+          <button type="button" class="btn" onclick="updateFacilityCostModifier()" style="margin-left: 10px;">Update Modifier</button>
+        </div>
+      </div>
+      
+      <!-- Core Facilities Section -->
+      <h3 style="color: #e0e0e0; margin-bottom: 15px;">Core Facilities (3)</h3>
+      <div class="facility-grid">
+        <% coreMajorFacilities.slice(0, 3).forEach((facility, index) => { %>
+          <div class="facility-card" data-facility-index="<%= index %>">
+            <div class="facility-header">
+              <h4><%= facility.facilityName %></h4>
+              <label class="purchased-toggle">
+                <input type="checkbox" 
+                       <%= facility.isPurchased ? 'checked' : '' %> 
+                       disabled
+                       title="Core facilities are always purchased">
+                <span>Purchased</span>
+              </label>
+            </div>
+            <p class="facility-description"><%= facility.facilityDescription %></p>
+            
+            <% if (facility.upgrades && facility.upgrades.length > 0) { %>
+              <div class="upgrades-section">
+                <h5>Upgrades</h5>
+                <% facility.upgrades.forEach((upgrade, upgradeIndex) => { %>
+                  <div class="upgrade-item">
+                    <div class="upgrade-info">
+                      <strong><%= upgrade.upgradeName %></strong>
+                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
+                    </div>
+                    <p class="upgrade-description"><%= upgrade.upgradeDescription %></p>
+                    <div class="upgrade-count">
+                      <label>Purchased:</label>
+                      <input type="number" 
+                             class="upgrade-count-input"
+                             value="<%= upgrade.upgradeCount %>"
+                             min="0"
+                             max="<%= upgrade.maxPurchases %>"
+                             data-facility-index="<%= index %>"
+                             data-upgrade-index="<%= upgradeIndex %>"
+                             onchange="updateUpgradeCount(this)">
+                      <span>/ <%= upgrade.maxPurchases %></span>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+        <% }); %>
+      </div>
+      
+      <!-- Major Facilities Section -->
+      <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Major Facilities (6)</h3>
+      <div class="facility-grid">
+        <% coreMajorFacilities.slice(3, 9).forEach((facility, localIndex) => { 
+           const index = localIndex + 3;
+        %>
+          <div class="facility-card" data-facility-index="<%= index %>">
+            <div class="facility-header">
+              <h4><%= facility.facilityName %></h4>
+              <label class="purchased-toggle">
+                <input type="checkbox" 
+                       <%= facility.isPurchased ? 'checked' : '' %>
+                       data-facility-index="<%= index %>"
+                       onchange="toggleFacilityPurchased(this)">
+                <span>Purchased</span>
+              </label>
+            </div>
+            <div class="facility-price">Price: <%= facility.facilityPrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></div>
+            <p class="facility-description"><%= facility.facilityDescription %></p>
+            
+            <% if (facility.upgrades && facility.upgrades.length > 0) { %>
+              <div class="upgrades-section">
+                <h5>Upgrades</h5>
+                <% facility.upgrades.forEach((upgrade, upgradeIndex) => { %>
+                  <div class="upgrade-item">
+                    <div class="upgrade-info">
+                      <strong><%= upgrade.upgradeName %></strong>
+                      <span class="upgrade-price"><%= upgrade.upgradePrice %><img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon"></span>
+                    </div>
+                    <p class="upgrade-description"><%= upgrade.upgradeDescription %></p>
+                    <div class="upgrade-count">
+                      <label>Purchased:</label>
+                      <input type="number" 
+                             class="upgrade-count-input"
+                             value="<%= upgrade.upgradeCount %>"
+                             min="0"
+                             max="<%= upgrade.maxPurchases %>"
+                             data-facility-index="<%= index %>"
+                             data-upgrade-index="<%= upgradeIndex %>"
+                             onchange="updateUpgradeCount(this)">
+                      <span>/ <%= upgrade.maxPurchases %></span>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+        <% }); %>
+      </div>
+      
+      <!-- Minor Facilities Section -->
+      <h3 style="color: #e0e0e0; margin: 20px 0 15px;">Minor Facility Slots (6)</h3>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Last 2 slots can be enabled/disabled. Click "Assign" to select from available minor facilities.</p>
+      <div class="facility-grid">
+        <% minorFacilitiesSlots.slots.forEach((slot, slotIndex) => { %>
+          <div class="facility-card minor-slot <%= !slot.enabled ? 'disabled-facility' : '' %>" data-slot-number="<%= slot.slotNumber %>">
+            <div class="facility-header">
+              <h4>Minor Slot <%= slot.slotNumber %></h4>
+              <% if (slotIndex >= 4) { %>
+                <label class="enabled-toggle">
+                  <input type="checkbox" 
+                         <%= slot.enabled ? 'checked' : '' %>
+                         data-slot-number="<%= slot.slotNumber %>"
+                         onchange="toggleMinorSlotEnabled(this)">
+                  <span>Enabled</span>
+                </label>
+              <% } %>
+            </div>
+            
+            <% if (slot.enabled) { %>
+              <% if (slot.facilityName) { %>
+                <div class="assigned-facility">
+                  <h5><%= slot.facilityName %></h5>
+                  <p class="facility-description"><%= slot.facilityDescription %></p>
+                  <button class="btn btn-delete btn-sm" onclick="clearMinorSlot(<%= slot.slotNumber %>)">Clear Slot</button>
+                </div>
+              <% } else { %>
+                <div class="empty-slot">
+                  <p style="color: #888; text-align: center; padding: 20px;">No facility assigned</p>
+                  <button class="btn btn-primary btn-sm" onclick="openMinorFacilityAssignModal(<%= slot.slotNumber %>)">Assign Facility</button>
+                </div>
+              <% } %>
+            <% } else { %>
+              <p style="color: #666; text-align: center; padding: 20px;">This slot is disabled</p>
+            <% } %>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>

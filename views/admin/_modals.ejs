@@ -1,0 +1,601 @@
+  <!-- Notification Footer -->
+  <div id="notificationFooter" class="notification-footer"></div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Job</h2>
+        <span class="close" onclick="closeEditModal()">&times;</span>
+      </div>
+      <form id="editJobForm">
+        <input type="hidden" id="editJobId">
+        <div class="form-group">
+          <label for="editJobName">Job Name</label>
+          <input type="text" id="editJobName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobRank">Job Rank (1-3 stars)</label>
+          <select id="editJobRank" name="rank" required>
+            <option value="1">1 Star</option>
+            <option value="2">2 Stars</option>
+            <option value="3">3 Stars</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobState">Job State</label>
+          <select id="editJobState" name="state" required>
+            <% jobStates.forEach(state => { %>
+              <option value="<%= state %>"><%= state %></option>
+            <% }); %>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobFaction">Faction (Optional)</label>
+          <select id="editJobFaction" name="factionId">
+            <option value="">None</option>
+            <% factions.forEach(faction => { %>
+              <option value="<%= faction.id %>"><%= faction.title %></option>
+            <% }); %>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobType">Job Type</label>
+          <input type="text" id="editJobType" name="jobType" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobDescription">Objective</label>
+          <textarea id="editJobDescription" name="description" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobClientBrief">Client Brief</label>
+          <textarea id="editJobClientBrief" name="clientBrief" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="editJobCurrencyPay" class="currency-label">
+            Currency Pay (e.g., 100m)
+            <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+          </label>
+          <input type="text" id="editJobCurrencyPay" name="currencyPay" required>
+        </div>
+
+        <div class="form-group">
+          <label for="editJobAdditionalPay">Additional Pay</label>
+          <input type="text" id="editJobAdditionalPay" name="additionalPay">
+        </div>
+
+        <div class="form-group">
+          <label for="editJobAdminLog">Admin Log</label>
+          <textarea id="editJobAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this job"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editJobEmblem">Emblem</label>
+          <input type="hidden" id="editJobEmblem" name="emblem" value="">
+          <div class="emblem-grid" id="editEmblemGrid">
+            <div class="emblem-option none" data-emblem="">
+              [None]
+            </div>
+            <% emblems.forEach(emblem => { %>
+              <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+                <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+              </div>
+            <% }); %>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+  <!-- Edit Faction Modal -->
+  <div id="editFactionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Faction</h2>
+        <span class="close" onclick="closeEditFactionModal()">&times;</span>
+      </div>
+      <form id="editFactionForm">
+        <input type="hidden" id="editFactionId">
+        <div class="form-group">
+          <label for="editFactionTitle">Faction Title</label>
+          <input type="text" id="editFactionTitle" name="title" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editFactionBrief">Brief</label>
+          <textarea id="editFactionBrief" name="brief" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="editFactionStanding">Standing</label>
+          <select id="editFactionStanding" name="standing" required>
+            <option value="0">0 - Distrusted</option>
+            <option value="1">1 - Wary</option>
+            <option value="2">2 - Neutral</option>
+            <option value="3">3 - Respected</option>
+            <option value="4">4 - Trusted</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="editFactionJobsCompletedOffset">Jobs Completed Offset (calculated from jobs + this offset)</label>
+          <input type="number" id="editFactionJobsCompletedOffset" name="jobsCompletedOffset" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editFactionJobsFailedOffset">Jobs Failed Offset (calculated from jobs + this offset)</label>
+          <input type="number" id="editFactionJobsFailedOffset" name="jobsFailedOffset" required>
+        </div>
+
+        <div class="form-group">
+          <label for="editFactionAdminLog">Admin Log</label>
+          <textarea id="editFactionAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this faction"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editFactionEmblem">Emblem</label>
+          <input type="hidden" id="editFactionEmblem" name="emblem" value="">
+          <div class="emblem-grid" id="editFactionEmblemGrid">
+            <div class="emblem-option none" data-emblem="">
+              [None]
+            </div>
+            <% emblems.forEach(emblem => { %>
+              <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+                <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+              </div>
+            <% }); %>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Edit Transaction Modal -->
+  <div id="editTransactionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Transaction</h2>
+        <span class="close" onclick="closeEditTransactionModal()">&times;</span>
+      </div>
+      <form id="editTransactionForm">
+        <input type="hidden" id="editTransactionId">
+        <div class="form-group">
+          <label for="editTransactionDate">Date</label>
+          <input type="datetime-local" id="editTransactionDate" name="date" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editTransactionAmount">Amount (+ or -)</label>
+          <input type="number" id="editTransactionAmount" name="amount" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editTransactionDescription">Description</label>
+          <input type="text" id="editTransactionDescription" name="description" required>
+        </div>
+        
+        <p style="color: #b0b0b0; margin: 10px 0;">
+          <em>Note: Editing transactions does not affect pilot associations. Use the "Select Pilot(s)" button to change pilot assignments.</em>
+        </p>
+        
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Pilot Selection Modal -->
+  <div id="pilotSelectionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Select Pilot(s)</h2>
+        <span class="close" onclick="closePilotSelectionModal()">&times;</span>
+      </div>
+      <div id="pilotSelectionList" style="max-height: 400px; overflow-y: auto;">
+        <% if (pilots.length === 0) { %>
+          <p style="color: #b0b0b0;">No pilots available.</p>
+        <% } else { %>
+          <% pilots.sort((a, b) => {
+            if (a.active !== b.active) return b.active ? 1 : -1;
+            return a.name.localeCompare(b.name);
+          }).forEach(pilot => { %>
+            <div style="margin-bottom: 10px; padding: 10px; background-color: <%= pilot.active ? '#1a1a1a' : '#2a2a2a' %>; border-radius: 3px;">
+              <label style="display: flex; align-items: center; cursor: pointer; color: <%= pilot.active ? '#e0e0e0' : '#888' %>;">
+                <input type="checkbox" class="pilot-checkbox" value="<%= pilot.id %>" style="margin-right: 10px; width: auto;">
+                <span><%= pilot.name %> (<%= pilot.callsign %>)<%= pilot.active ? '' : ' - Inactive' %></span>
+              </label>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+      <div style="margin-top: 20px;">
+        <button type="button" class="btn btn-primary" onclick="confirmPilotSelection()">Confirm Selection</button>
+        <button type="button" class="btn btn-neutral" onclick="closePilotSelectionModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Pilot Modal -->
+  <div id="editPilotModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Pilot</h2>
+        <span class="close" onclick="closeEditPilotModal()">&times;</span>
+      </div>
+      <form id="editPilotForm">
+        <input type="hidden" id="editPilotId">
+        <div class="form-group">
+          <label for="editPilotName">Name</label>
+          <input type="text" id="editPilotName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editPilotCallsign">Callsign</label>
+          <input type="text" id="editPilotCallsign" name="callsign" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editPilotLL">License Level (0-12)</label>
+          <input type="number" id="editPilotLL" name="ll" min="0" max="12" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editPilotNotes">Notes (multiline)</label>
+          <textarea id="editPilotNotes" name="notes" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editPilotAdminLog">Admin Log</label>
+          <textarea id="editPilotAdminLog" name="adminLog" placeholder="GM Only notes for this pilot" rows="4"></textarea>
+        </div>
+        
+        <div class="form-group" id="editPilotPersonalOperationProgressGroup" style="display: <%= settings.openTable ? 'block' : 'none' %>">
+          <label for="editPilotPersonalOperationProgress">Personal Operation Progress</label>
+          <select id="editPilotPersonalOperationProgress" name="personalOperationProgress">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; cursor: pointer;">
+            <span style="display: inline; margin-right: 8px;">Active:</span>
+            <input type="checkbox" id="editPilotActive" name="active" value="true" style="width: auto;">
+          </label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Pilot Related Jobs Modal -->
+  <div id="pilotRelatedJobsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Pilot Related Jobs</h2>
+        <span class="close" onclick="closePilotRelatedJobsModal()">&times;</span>
+      </div>
+      <input type="hidden" id="pilotRelatedJobsPilotId">
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Select jobs to associate with this pilot (non-Pending jobs only):</p>
+      <div id="pilotRelatedJobsList" style="max-height: 400px; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a;">
+        <!-- Populated dynamically -->
+      </div>
+      <div style="margin-top: 15px;">
+        <button class="btn btn-primary" onclick="savePilotRelatedJobs()">Save Related Jobs</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Pilot Balance History Modal -->
+  <div id="pilotBalanceHistoryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Pilot Balance History</h2>
+        <span class="close" onclick="closePilotBalanceHistoryModal()">&times;</span>
+      </div>
+      <input type="hidden" id="pilotBalanceHistoryPilotId">
+      <div style="margin-bottom: 15px;">
+        <div class="job-item-field">
+          <strong>Current Balance:</strong> 
+          <span id="pilotBalanceHistoryTotal">0</span>
+          <img src="/emblems/<%= settings.currencyIcon || 'manna_symbol.svg' %>" alt="Currency Icon" class="currency-icon">
+        </div>
+      </div>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Uncheck transactions to disassociate them from this pilot. The transaction will remain in the system.</p>
+      <div id="pilotBalanceHistoryList" style="max-height: 400px; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a;">
+        <!-- Populated dynamically -->
+      </div>
+      <div style="margin-top: 15px;">
+        <button class="btn btn-primary" onclick="savePilotBalanceHistory()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Pilot Reserves Modal -->
+  <div id="pilotReservesModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Pilot Reserves</h2>
+        <span class="close" onclick="closePilotReservesModal()">&times;</span>
+      </div>
+      <input type="hidden" id="pilotReservesModalPilotId">
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Manage reserves owned by this pilot. Click cards to select/deselect.</p>
+      
+      <!-- Reserve Action Buttons -->
+      <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-neutral" onclick="setSelectedReservesStatus('In Reserve')" id="setInReserveBtn" disabled>Set to In Reserve</button>
+        <button class="btn btn-neutral" onclick="setSelectedReservesStatus('Deployed')" id="setDeployedBtn" disabled>Set to Deployed</button>
+        <button class="btn btn-neutral" onclick="setSelectedReservesStatus('Expended')" id="setExpendedBtn" disabled>Set to Expended</button>
+        <button class="btn btn-delete" onclick="removeSelectedReservesFromPilot()" id="removeReservesBtn" disabled>Remove Reserve</button>
+        <button class="btn btn-primary" onclick="openAddReservesToPilotModal()">Add Reserve</button>
+      </div>
+      
+      <!-- Pilot Reserves Grid -->
+      <div id="pilotReservesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; min-height: 100px; max-height: 500px; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add Reserves to Pilot Modal (Sub-modal) -->
+  <div id="addReservesToPilotModal" class="modal">
+    <div class="modal-content" style="max-width: 1200px;">
+      <div class="modal-header">
+        <h2>Add Reserves to Pilot</h2>
+        <span class="close" onclick="closeAddReservesToPilotModal()">&times;</span>
+      </div>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Select reserves to add to this pilot. Click cards to select/deselect.</p>
+      
+      <div style="margin-bottom: 15px;">
+        <button class="btn btn-primary" onclick="addSelectedStockReservesToPilot()" id="addStockReservesBtn" disabled>Add Selected to Pilot</button>
+      </div>
+      
+      <!-- Filter Pills -->
+      <div class="filter-pills" style="margin-bottom: 15px;">
+        <button class="filter-pill active" data-rank="all" onclick="filterPilotAddReserves('all', event)" id="pilotAddFilterAll">All</button>
+        <button class="filter-pill" data-rank="1" onclick="filterPilotAddReserves('1', event)" id="pilotAddFilterRank1">Rank 1</button>
+        <button class="filter-pill" data-rank="2" onclick="filterPilotAddReserves('2', event)" id="pilotAddFilterRank2">Rank 2</button>
+        <button class="filter-pill" data-rank="3" onclick="filterPilotAddReserves('3', event)" id="pilotAddFilterRank3">Rank 3</button>
+        <button class="filter-pill" data-hide-default="false" onclick="togglePilotAddHideDefault(event)" id="pilotAddHideDefaultPill">Hide Default Reserves</button>
+      </div>
+      
+      <!-- Search Field -->
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label for="pilotAddReserveSearchInput">Search Reserves</label>
+        <input type="text" id="pilotAddReserveSearchInput" placeholder="Search by name..." oninput="searchPilotAddReserves(this.value)" style="max-width: 400px;">
+      </div>
+      
+      <!-- Available Reserves Grid -->
+      <div id="addReservesStockGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; min-height: 100px; max-height: 500px; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Faction Related Jobs Modal -->
+  <div id="factionRelatedJobsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Faction Related Jobs</h2>
+        <span class="close" onclick="closeFactionRelatedJobsModal()">&times;</span>
+      </div>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Jobs related to this faction:</p>
+      <div id="factionRelatedJobsList" style="max-height: 400px; overflow-y: auto;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Progress All Jobs Confirmation Modal -->
+  <div id="progressAllJobsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Confirm: Progress All Jobs</h2>
+        <span class="close" onclick="closeProgressAllJobsModal()">&times;</span>
+      </div>
+      <div style="color: #e0e0e0; line-height: 1.6;">
+        <p style="margin-bottom: 15px;">This action will:</p>
+        <ul style="margin-left: 20px; margin-bottom: 15px;">
+          <li>Set all <strong>"Active"</strong> jobs to <strong>"Ignored"</strong></li>
+          <li>Set all <strong>"Pending"</strong> jobs to <strong>"Active"</strong></li>
+          <li>Add newly active jobs to all currently <strong>Active Pilots'</strong> related job lists</li>
+        </ul>
+        
+        <h3 style="margin: 20px 0 10px; color: #e0e0e0;">Jobs to be affected:</h3>
+        <div id="progressAllJobsList" style="max-height: 50vh; overflow-y: auto; border: 1px solid #444; padding: 15px; border-radius: 3px; background-color: #1a1a1a; margin-bottom: 15px;">
+          <!-- Populated dynamically -->
+        </div>
+        
+        <p style="margin-bottom: 20px; color: #f44336; font-weight: bold;">This action cannot be undone.</p>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="confirmProgressAllJobs()">Confirm</button>
+          <button class="btn btn-neutral" onclick="closeProgressAllJobsModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Progress Operation Modal -->
+  <div id="progressOperationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Confirm: Progress Operation Track for Active Pilots</h2>
+        <span class="close" onclick="closeProgressOperationModal()">&times;</span>
+      </div>
+      <div style="color: #e0e0e0; line-height: 1.6;">
+        <p style="margin-bottom: 15px;">This action will increment <strong>Personal Operation Progress</strong> for the following <strong>Active Pilots</strong>:</p>
+        <div id="progressOperationPilotList" style="margin-bottom: 15px; max-height: 50vh; overflow-y: auto; border: 1px solid #555; padding: 10px; background-color: #1a1a1a;">
+          <!-- Pilot list will be populated dynamically -->
+        </div>
+        <p style="margin-bottom: 20px; color: #f44336; font-weight: bold;">This action cannot be undone.</p>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="confirmProgressOperation()">Confirm</button>
+          <button class="btn btn-neutral" onclick="closeProgressOperationModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minor Facility Assignment Modal -->
+  <div id="minorFacilityAssignModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2>Assign Minor Facility to Slot <span id="assignModalSlotNumber"></span></h2>
+        <span class="close" onclick="closeMinorFacilityAssignModal()">&times;</span>
+      </div>
+      <p style="color: #b0b0b0; margin-bottom: 15px;">Select a minor facility to assign to this slot. Already assigned facilities are not shown.</p>
+      <div id="minorFacilityGrid" class="minor-facility-selection-grid">
+        <!-- Populated dynamically -->
+      </div>
+      <div style="margin-top: 20px;">
+        <button class="btn btn-neutral" onclick="closeMinorFacilityAssignModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Reserve Modal -->
+  <div id="createReserveModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create Reserve</h2>
+        <span class="close" onclick="closeCreateReserveModal()">&times;</span>
+      </div>
+      <form id="createReserveForm">
+        <div class="form-group">
+          <label for="createReserveRank">Rank (1-3)</label>
+          <select id="createReserveRank" name="rank" required>
+            <option value="1">Rank 1</option>
+            <option value="2">Rank 2</option>
+            <option value="3">Rank 3</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="createReserveName">Name</label>
+          <input type="text" id="createReserveName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="createReservePrice">Price</label>
+          <input type="number" id="createReservePrice" name="price" min="0" value="0" required>
+        </div>
+    
+        <div class="form-group">
+          <label for="createReserveDescription">Description</label>
+          <textarea id="createReserveDescription" name="description" rows="4" placeholder="Text before your first [enter] input will be bolded."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="createReserveAdminLog">Admin Log</label>
+          <textarea id="createReserveAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this reserve"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Reserve</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Reserve Modal -->
+  <div id="editReserveModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Reserve</h2>
+        <span class="close" onclick="closeEditReserveModal()">&times;</span>
+      </div>
+      <form id="editReserveForm">
+        <input type="hidden" id="editReserveId">
+        
+        <div class="form-group">
+          <label for="editReserveRank">Rank (1-3)</label>
+          <select id="editReserveRank" name="rank" required>
+            <option value="1">Rank 1</option>
+            <option value="2">Rank 2</option>
+            <option value="3">Rank 3</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="editReserveName">Name</label>
+          <input type="text" id="editReserveName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editReservePrice">Price</label>
+          <input type="number" id="editReservePrice" name="price" min="0" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editReserveDescription">Description</label>
+          <textarea id="editReserveDescription" name="description" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editReserveAdminLog">Admin Log</label>
+          <textarea id="editReserveAdminLog" name="adminLog" rows="3" placeholder="GM-only notes for this reserve"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Currency Icon Selection Modal -->
+  <div id="currencyIconModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Select Currency Icon</h2>
+        <span class="close" onclick="closeCurrencyIconModal()">&times;</span>
+      </div>
+      <div style="padding: 20px;">
+        <p style="color: #b0b0b0; margin-bottom: 15px;">
+          Select an SVG icon from the emblem library to use as the currency icon. The selected icon will be used throughout the application.
+        </p>
+        <div class="emblem-grid" id="currencyIconGrid">
+          <% emblems.forEach(emblem => { %>
+            <div class="emblem-option" data-emblem="<%= emblem %>" title="<%= formatEmblemTitle(emblem) %>">
+              <img src="/emblems/<%= emblem %>" alt="<%= formatEmblemTitle(emblem) %>">
+            </div>
+          <% }); %>
+        </div>
+        <div style="margin-top: 20px; text-align: right;">
+          <button type="button" class="btn btn-secondary" onclick="closeCurrencyIconModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveCurrencyIcon()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modify Voting Close Modal -->
+  <div id="modify-vote-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Modify Voting Close Time</h2>
+        <span class="close" onclick="closeModifyVoteModal()">&times;</span>
+      </div>
+      <div class="form-group">
+        <label for="modify-vote-end-time">New End Time</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="datetime-local" id="modify-vote-end-time" style="flex: 1; color-scheme: dark;">
+          <label style="display: flex; align-items: center; gap: 5px; color: #b0b0b0; cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="modify-vote-infinite-duration" onchange="toggleModifyEndTime(this)">
+            No end time?
+          </label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" onclick="modifyVotingClose()">Update End Time</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModifyVoteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
