@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lancer-job-board.local/schemas/theater.schema.json",
   "title": "Theater",
-  "description": "An operational theater: a flat map or a planet, with location markers",
+  "description": "An operational theater: a flat map with location markers",
   "type": "object",
   "required": [
     "id",
@@ -29,11 +29,6 @@
       "type": "string",
       "description": "Optional galactic position displayed beneath the theater name"
     },
-    "type": {
-      "type": "string",
-      "description": "Rendering type: flat 2D map or planet sphere",
-      "enum": ["flat", "planet"]
-    },
     "active": {
       "type": "boolean",
       "description": "Whether the theater is visible to players; inactive theaters remain visible while one of their locations contains an active job"
@@ -41,10 +36,6 @@
     "backgroundImage": {
       "type": ["string", "null"],
       "description": "Filename of the flat background map (served via /theater-assets)"
-    },
-    "textureImage": {
-      "type": ["string", "null"],
-      "description": "Filename of the planet surface texture (served via /planet-textures, Iteration 2)"
     },
     "locations": {
       "type": "array",
@@ -55,7 +46,6 @@
   "additionalProperties": false,
   "notes": [
     "Flat theaters use normalized x/y (0..1) for resolution-independent markers.",
-    "Planet theaters use lat/lon on location markers (Iteration 2).",
     "Locations may reference a childTheaterId to enable drill-down sublocations.",
     "Assigned jobs are stored as references (job IDs) into jobs.json; job data itself is never duplicated."
   ]

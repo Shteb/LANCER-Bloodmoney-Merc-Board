@@ -4,32 +4,48 @@ const dataStore = require('../../models/dataStore');
 const { requireAnyAuth, requireAdminAuth } = require('../../middleware/auth');
 const { broadcastSSE } = require('../../lib/sseManager');
 
-const { getActiveJobIds, filterTheatersForPlayers } = require('../../lib/theaterVisibility');
-const theatersRouter = require('./theaters');
+const { theatersForPlayer } = require('../../lib/theaterVisibility');
+const { broadcastTheaters } = require('../../lib/theaterBroadcast');
 
 const router = express.Router();
 
-// Enrich jobs with faction + assigned location data
-// Non-admins only see locations that are visible to players (SSE broadcasts go to everyone, so they use the filtered view too)
+// Enrich jobs with faction + assigned location data. A non-admin must not learn
+// a location exists by seeing it named on a job, so they get the filtered view.
 function enrichJobs(jobs, isAdmin = false) {
   const withFactions = dataStore.enrichJobsWithFactions(jobs, dataStore.readFactions());
   const theaters = dataStore.readTheaters();
   return dataStore.enrichJobsWithLocations(
     withFactions,
-    isAdmin ? theaters : filterTheatersForPlayers(theaters, getActiveJobIds(jobs))
+    isAdmin ? theaters : theatersForPlayer(theaters, jobs, dataStore.readSettings())
   );
 }
 
-// Apply body.locationId (when sent) to the job; returns an error message or null
-function applyLocation(jobId, locationId) {
+// Broadcast a jobs update, enriched per recipient: an admin must still see the
+// locations a player is not allowed to.
+function broadcastJobs(payload) {
+  broadcastSSE('jobs', payload, (data, role) => ({
+    ...data,
+    jobs: enrichJobs(data.jobs, role === 'admin')
+  }));
+}
+
+// Check body.locationId names a real location. Run before the job is written.
+function validateLocationId(locationId) {
   if (locationId === undefined) return null;
   const id = String(locationId || '');
   if (id && !dataStore.readTheaters().some(t => (t.locations || []).some(l => l.id === id))) {
     return 'Location not found';
   }
-  const theaters = dataStore.setJobLocation(jobId, id);
-  if (theaters) theatersRouter.broadcastTheaters({ action: 'location-update', theaters });
   return null;
+}
+
+// Write the job's location assignment. Must run *after* the job itself is
+// saved: the assignment lives on the theater and would otherwise point at a
+// job that does not exist if the job write failed.
+function applyLocation(jobId, locationId) {
+  if (locationId === undefined) return;
+  const theaters = dataStore.setJobLocation(jobId, String(locationId || ''));
+  if (theaters) broadcastTheaters({ action: 'location-update', theaters });
 }
 
 router.get('/', requireAnyAuth, (req, res) => {
@@ -60,16 +76,17 @@ router.post('/', requireAdminAuth, (req, res) => {
     state: validation.state,
     factionId: validation.factionId
   };
-  const locationError = applyLocation(newJob.id, req.body.locationId);
+  const locationError = validateLocationId(req.body.locationId);
   if (locationError) {
     return res.status(400).json({ success: false, message: locationError });
   }
   jobs.push(newJob);
   dataStore.writeJobs(jobs);
+  applyLocation(newJob.id, req.body.locationId);
 
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'create', job: newJob, jobs: enrichJobs(jobs) });
-  
+  broadcastJobs({ action: 'create', job: newJob, jobs });
+
   res.json({ success: true, job: newJob });
 });
 
@@ -107,20 +124,21 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
     factionId: validation.factionId
   };
   
-  const locationError = applyLocation(newJob.id, req.body.locationId);
+  const locationError = validateLocationId(req.body.locationId);
   if (locationError) {
     return res.status(400).json({ success: false, message: locationError });
   }
   jobs[index] = newJob;
   dataStore.writeJobs(jobs);
-  
+  applyLocation(newJob.id, req.body.locationId);
+
   // Auto-archive ongoing voting period if Active job changes to another state
   if (wasActive && newJob.state !== 'Active') {
     await dataStore.archiveOngoingVotingPeriod('Active job state changed');
   }
-  
+
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs: enrichJobs(jobs) });
+  broadcastJobs({ action: 'update', job: jobs[index], jobs });
   
   res.json({ success: true, job: jobs[index] });
 });
@@ -129,10 +147,14 @@ router.delete('/:id', requireAdminAuth, (req, res) => {
   let jobs = dataStore.readJobs();
   jobs = jobs.filter(j => j.id !== req.params.id);
   dataStore.writeJobs(jobs);
-  
+
+  // Drop the job from any location holding it. Left behind, the stale ID fails
+  // the assignedJobIds check the next time that location is edited.
+  applyLocation(req.params.id, '');
+
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'delete', jobId: req.params.id, jobs: enrichJobs(jobs) });
-  
+  broadcastJobs({ action: 'delete', jobId: req.params.id, jobs });
+
   res.json({ success: true });
 });
 
@@ -165,8 +187,8 @@ router.put('/:id/state', requireAdminAuth, async (req, res) => {
   }
   
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs: enrichJobs(jobs) });
-  
+  broadcastJobs({ action: 'update', job: jobs[index], jobs });
+
   res.json({ success: true, job: jobs[index] });
 });
 

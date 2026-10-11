@@ -13,6 +13,7 @@ const STANDING_LABELS = ['DISTRUSTED', 'WARY', 'NEUTRAL', 'RESPECTED', 'TRUSTED'
 const VALID_COLOR_SCHEMES = ['grey', 'orange', 'green', 'blue'];
 const DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 const SAFE_EMBLEM_PATTERN = /^[A-Za-z0-9_-]+\.svg$/;
+const SAFE_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp']);
 const JOB_STATES = ['Pending', 'Active', 'Complete', 'Failed', 'Ignored'];
 const DEFAULT_JOB_STATE = 'Pending';
 const VOTING_PERIOD_STATES = ['Ongoing', 'Archived'];
@@ -64,6 +65,18 @@ function isSafeEmblemFilename(filename) {
   if (typeof filename !== 'string') return false;
   if (filename !== path.basename(filename)) return false;
   return SAFE_EMBLEM_PATTERN.test(filename);
+}
+
+/**
+ * Check if an uploaded image filename is safe (theater maps).
+ * Same basename rule as isSafeEmblemFilename, for raster extensions.
+ * @param {string} filename - Filename to check
+ * @returns {boolean} True if safe
+ */
+function isSafeImageFilename(filename) {
+  if (typeof filename !== 'string') return false;
+  if (filename !== path.basename(filename)) return false;
+  return SAFE_IMAGE_EXTENSIONS.has(path.extname(filename).toLowerCase());
 }
 
 /**
@@ -1070,6 +1083,7 @@ module.exports = {
   generateId,
   sanitizeEmblemBaseName,
   isSafeEmblemFilename,
+  isSafeImageFilename,
   formatEmblemTitle,
   validateDate,
   isValidColorScheme,

@@ -2,6 +2,7 @@
  * Tests for the Operational Theaters feature.
  * - Validates theater/location schema shape against sample data
  * - Verifies migrateTheatersIfNeeded is idempotent and back-fills fields
+ * - Verifies what a player is allowed to see, including over SSE
  *
  * Self-contained: uses a temporary data directory so it never touches real data.
  */
@@ -56,7 +57,6 @@ function validateTheater(theater, pathLabel) {
   if (theater.galacticPos !== undefined) {
     assert(typeof theater.galacticPos === 'string', `${pathLabel}.galacticPos must be a string`);
   }
-  assert(['flat', 'planet'].includes(theater.type), `${pathLabel}.type must be flat|planet`);
   assert(Array.isArray(theater.locations), `${pathLabel}.locations must be an array`);
   theater.locations.forEach((loc, i) => validateLocation(loc, `${pathLabel}.locations[${i}]`));
 }
@@ -67,9 +67,7 @@ test('sample theater conforms to expected shape', () => {
     name: 'Skaer-5 Theater',
     galacticPos: 'SKAER-5',
     description: 'Primary operational area',
-    type: 'flat',
     backgroundImage: 'map1.png',
-    textureImage: null,
     locations: [
       {
         id: 'loc-1',
@@ -81,8 +79,6 @@ test('sample theater conforms to expected shape', () => {
         iconScale: 1,
         x: 0.42,
         y: 0.63,
-        lat: null,
-        lon: null,
         assignedJobIds: [],
         visibleToPlayers: true,
         childTheaterId: null
@@ -90,33 +86,6 @@ test('sample theater conforms to expected shape', () => {
     ]
   };
   validateTheater(sample, 'sample');
-});
-
-test('planet theater with lat/lon location is valid', () => {
-  const sample = {
-    id: 'theater-2',
-    name: 'Cradle',
-    type: 'planet',
-    backgroundImage: null,
-    textureImage: 'cradle.jpg',
-    locations: [
-      {
-        id: 'loc-2',
-        name: 'Northern Spire',
-        icon: 'token--planets.svg',
-        iconColor: '#ffcc00',
-        iconScale: 1.5,
-        x: null,
-        y: null,
-        lat: 45.2,
-        lon: -12.7,
-        assignedJobIds: ['job-abc'],
-        visibleToPlayers: true,
-        childTheaterId: null
-      }
-    ]
-  };
-  validateTheater(sample, 'planet-sample');
 });
 
 // ==================== Migration idempotency ====================
@@ -155,11 +124,9 @@ test('migrateTheatersIfNeeded back-fills fields and is idempotent', () => {
   dataStore.migrateTheatersIfNeeded();
   const afterFirst = JSON.parse(fs.readFileSync(theatersFile, 'utf8'));
 
-  assert(afterFirst[0].type === 'flat', 'type should default to flat');
-  assert(afterFirst[0].textureImage === null, 'textureImage should be back-filled to null');
+  assert(afterFirst[0].active === true, 'active should default to true');
   const loc = afterFirst[0].locations[0];
   assert(Array.isArray(loc.assignedJobIds), 'assignedJobIds should be back-filled to array');
-  assert(loc.lat === null && loc.lon === null, 'lat/lon back-filled to null');
   assert(loc.childTheaterId === null, 'childTheaterId back-filled to null');
   assert(loc.iconColor === '#e0e0e0', 'iconColor back-filled');
   assert(loc.iconScale === 1, 'iconScale back-filled');
@@ -173,6 +140,145 @@ test('migrateTheatersIfNeeded back-fills fields and is idempotent', () => {
 
   // Clean up temp dir
   fs.rmSync(tmpBase, { recursive: true, force: true });
+});
+
+// ==================== Player visibility ====================
+
+const { theatersForPlayer } = require('./lib/theaterVisibility');
+
+// A hidden theater whose hidden location holds an active job, plus a plainly
+// visible one. Covers every branch of the rule in a single fixture.
+function visibilityFixture() {
+  return {
+    theaters: [
+      {
+        id: 'open',
+        name: 'Open Theater',
+        active: true,
+        locations: [
+          { id: 'open-loc', name: 'Open Site', visibleToPlayers: true, assignedJobIds: [] },
+          { id: 'secret-loc', name: 'Secret Site', visibleToPlayers: false, assignedJobIds: [] }
+        ]
+      },
+      {
+        id: 'hidden',
+        name: 'Hidden Theater',
+        active: false,
+        locations: [
+          { id: 'mission-loc', name: 'Mission Site', visibleToPlayers: false, assignedJobIds: ['job-active'] },
+          { id: 'other-loc', name: 'Other Site', visibleToPlayers: false, assignedJobIds: ['job-done'] }
+        ]
+      }
+    ],
+    jobs: [
+      { id: 'job-active', state: 'Active' },
+      { id: 'job-done', state: 'Completed' }
+    ]
+  };
+}
+
+test('player sees nothing when the GM has theaters switched off', () => {
+  const { theaters, jobs } = visibilityFixture();
+  const result = theatersForPlayer(theaters, jobs, { theatersVisible: false });
+  assert.deepStrictEqual(result, [], 'should return no theaters at all');
+});
+
+test('player sees visible theaters and not hidden locations', () => {
+  const { theaters, jobs } = visibilityFixture();
+  const open = theatersForPlayer(theaters, jobs, { theatersVisible: true })
+    .find(t => t.id === 'open');
+  const locIds = open.locations.map(l => l.id);
+  assert(locIds.includes('open-loc'), 'visible location should be shown');
+  assert(!locIds.includes('secret-loc'), 'hidden location must not be shown');
+});
+
+test('an active job keeps its hidden theater and location reachable', () => {
+  const { theaters, jobs } = visibilityFixture();
+  const hidden = theatersForPlayer(theaters, jobs, { theatersVisible: true })
+    .find(t => t.id === 'hidden');
+  assert(hidden, 'hidden theater holding an active job must stay reachable');
+  const locIds = hidden.locations.map(l => l.id);
+  assert(locIds.includes('mission-loc'), 'location with the active job must be shown');
+  assert(!locIds.includes('other-loc'), 'hidden location without an active job must not be');
+});
+
+// ==================== SSE payload filtering ====================
+
+test('theaters SSE payload sends players no hidden data', () => {
+  const sseManager = require('./lib/sseManager');
+  const dataStore = require('./models/dataStore');
+  const { theaters, jobs } = visibilityFixture();
+
+  // Serve the fixture instead of the real data files for this test
+  const realReadJobs = dataStore.readJobs;
+  const realReadSettings = dataStore.readSettings;
+  dataStore.readJobs = () => jobs;
+  dataStore.readSettings = () => ({ theatersVisible: true });
+
+  const received = {};
+  const fakeClient = role => ({
+    write: message => {
+      received[role] = JSON.parse(message.slice(message.indexOf('data: ') + 6));
+    }
+  });
+  const adminRes = fakeClient('admin');
+  const playerRes = fakeClient('client');
+
+  try {
+    sseManager.addClient(adminRes, 'admin');
+    sseManager.addClient(playerRes, 'client');
+
+    // Same shape the theater routes broadcast on an update
+    const { broadcastTheaters } = require('./lib/theaterBroadcast');
+    broadcastTheaters({ action: 'update', theater: theaters[1], theaters });
+
+    assert(received.admin.theater, 'admin should still receive the changed theater');
+    assert.strictEqual(received.admin.theaters.length, 2, 'admin should see every theater');
+
+    assert.strictEqual(received.client.theater, undefined,
+      'player payload must not carry the unfiltered changed theater');
+    const clientLocIds = received.client.theaters
+      .flatMap(t => t.locations.map(l => l.id));
+    assert(!clientLocIds.includes('secret-loc'),
+      'player payload must not carry a hidden location');
+    assert(!clientLocIds.includes('other-loc'),
+      'player payload must not carry a hidden location without an active job');
+  } finally {
+    sseManager.removeClient(adminRes);
+    sseManager.removeClient(playerRes);
+    dataStore.readJobs = realReadJobs;
+    dataStore.readSettings = realReadSettings;
+  }
+});
+
+test('theaters SSE sends players nothing when the GM switched theaters off', () => {
+  const sseManager = require('./lib/sseManager');
+  const dataStore = require('./models/dataStore');
+  const { theaters, jobs } = visibilityFixture();
+
+  const realReadJobs = dataStore.readJobs;
+  const realReadSettings = dataStore.readSettings;
+  dataStore.readJobs = () => jobs;
+  dataStore.readSettings = () => ({ theatersVisible: false });
+
+  let payload = null;
+  const playerRes = {
+    write: message => {
+      payload = JSON.parse(message.slice(message.indexOf('data: ') + 6));
+    }
+  };
+
+  try {
+    sseManager.addClient(playerRes, 'client');
+    const { broadcastTheaters } = require('./lib/theaterBroadcast');
+    broadcastTheaters({ action: 'update', theater: theaters[0], theaters });
+    assert.deepStrictEqual(payload.theaters, [], 'player should receive no theaters');
+    assert.strictEqual(payload.theater, undefined, 'player should receive no theater');
+  } finally {
+    sseManager.removeClient(playerRes);
+    dataStore.readJobs = realReadJobs;
+    dataStore.readSettings = realReadSettings;
+  }
 });
 
 // ==================== Summary ====================

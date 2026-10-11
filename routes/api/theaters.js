@@ -2,8 +2,8 @@ const express = require('express');
 const helpers = require('../../helpers');
 const dataStore = require('../../models/dataStore');
 const { requireAnyAuth, requireAdminAuth } = require('../../middleware/auth');
-const { broadcastSSE } = require('../../lib/sseManager');
-const { locationHasActiveJob, getActiveJobIds, filterTheatersForPlayers } = require('../../lib/theaterVisibility');
+const { theatersForPlayer } = require('../../lib/theaterVisibility');
+const { broadcastTheaters } = require('../../lib/theaterBroadcast');
 
 const router = express.Router();
 
@@ -16,38 +16,30 @@ function clampNormalized(value) {
   return Math.min(1, Math.max(0, num));
 }
 
-// Broadcast a theaters update, sending non-admin clients a payload with
-// hidden theaters/locations already stripped out (SSE has no per-client
-// filtering otherwise, so the raw payload must never reach a player).
-function broadcastTheaters(payload) {
-  broadcastSSE('theaters', payload, (data, role) => {
-    if (role === 'admin') return data;
-    const activeJobIds = getActiveJobIds(dataStore.readJobs());
-    return { ...data, theaters: filterTheatersForPlayers(data.theaters, activeJobIds) };
-  });
-}
-
-// Validate and normalize theater-level data (name/description/type/images)
+// Validate and normalize theater-level data (name/description/background)
 function validateTheaterData(body) {
   const nameValidation = helpers.validateRequiredString(body.name, 'Theater name');
   if (!nameValidation.valid) {
     return { valid: false, message: nameValidation.message };
   }
 
-  const type = body.type === 'planet' ? 'planet' : 'flat';
-
   // Default to active (visible to players) unless explicitly set false
   const active = !(body.active === false || body.active === 'false');
+
+  // Background must be a safe image basename if provided -- it is interpolated
+  // into a /theater-assets/ URL, same rule as a location's icon.
+  const backgroundImage = body.backgroundImage ? String(body.backgroundImage) : null;
+  if (backgroundImage && !helpers.isSafeImageFilename(backgroundImage)) {
+    return { valid: false, message: 'Invalid background image filename' };
+  }
 
   return {
     valid: true,
     name: nameValidation.value,
     description: (body.description || '').toString().trim(),
     galacticPos: (body.galacticPos || '').toString().trim(),
-    type,
     active,
-    backgroundImage: body.backgroundImage ? String(body.backgroundImage) : null,
-    textureImage: body.textureImage ? String(body.textureImage) : null
+    backgroundImage
   };
 }
 
@@ -97,8 +89,6 @@ function validateLocationData(body, jobIds) {
     visibleToPlayers: !(body.visibleToPlayers === false || body.visibleToPlayers === 'false'),
     x: clampNormalized(body.x),
     y: clampNormalized(body.y),
-    lat: Number.isFinite(Number(body.lat)) ? Number(body.lat) : null,
-    lon: Number.isFinite(Number(body.lon)) ? Number(body.lon) : null,
     assignedJobIds,
     childTheaterId: body.childTheaterId ? String(body.childTheaterId) : null
   };
@@ -116,8 +106,6 @@ function locationFields(validation, theaterId) {
     visibleToPlayers: validation.visibleToPlayers,
     x: validation.x,
     y: validation.y,
-    lat: validation.lat,
-    lon: validation.lon,
     assignedJobIds: validation.assignedJobIds,
     childTheaterId: validation.childTheaterId === theaterId ? null : validation.childTheaterId
   };
@@ -127,15 +115,14 @@ function locationFields(validation, theaterId) {
 
 // GET theaters (any authenticated user).
 // Admins see all theaters. Clients see enabled theaters plus hidden theaters
-// containing an active job, so active missions are never made unreachable.
+// containing an active job, so active missions are never made unreachable --
+// and nothing at all when the GM has theaters switched off.
 router.get('/', requireAnyAuth, (req, res) => {
   const theaters = dataStore.readTheaters();
-  const isAdmin = req.session && req.session.role === 'admin';
-  if (isAdmin) {
+  if (req.session && req.session.role === 'admin') {
     return res.json(theaters);
   }
-  const activeJobIds = getActiveJobIds(dataStore.readJobs());
-  res.json(filterTheatersForPlayers(theaters, activeJobIds));
+  res.json(theatersForPlayer(theaters, dataStore.readJobs(), dataStore.readSettings()));
 });
 
 // POST create theater (admin)
@@ -151,10 +138,8 @@ router.post('/', requireAdminAuth, (req, res) => {
     name: validation.name,
     description: validation.description,
     galacticPos: validation.galacticPos,
-    type: validation.type,
     active: validation.active,
     backgroundImage: validation.backgroundImage,
-    textureImage: validation.textureImage,
     locations: []
   };
   theaters.push(newTheater);
@@ -182,10 +167,8 @@ router.put('/:id', requireAdminAuth, (req, res) => {
     name: validation.name,
     description: validation.description,
     galacticPos: validation.galacticPos,
-    type: validation.type,
     active: validation.active,
-    backgroundImage: validation.backgroundImage,
-    textureImage: validation.textureImage
+    backgroundImage: validation.backgroundImage
   };
   dataStore.writeTheaters(theaters);
 
@@ -297,5 +280,4 @@ router.delete('/:id/locations/:locId', requireAdminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-router.broadcastTheaters = broadcastTheaters;
 module.exports = router;

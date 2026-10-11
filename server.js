@@ -7,14 +7,18 @@ const FileSessionStore = require('./models/sessionStore');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Log and survive an unexpected error instead of crashing the process --
-// a crash restarts the container, and since sessions live in this process,
-// that would otherwise instantly log out every signed-in user.
+// Log an unexpected error and let the process die so the host restarts it
+// clean. Carrying on would mean serving -- and writing over -- state of
+// unknown validity, and this app persists everything as whole-file JSON
+// writes. Logins survive the restart because sessions are stored in a file
+// (see FileSessionStore below), which is what makes exiting here safe.
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
+  process.exit(1);
 });
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err);
+  process.exit(1);
 });
 
 // pkg detection and path configuration
@@ -38,7 +42,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/emblems', express.static(path.join(BASE_PATH, 'logo_art')));
 app.use('/theater-assets', express.static(dataStore.getTheaterAssetsDir()));
-app.use('/planet-textures', express.static(dataStore.getPlanetTexturesDir()));
 
 // Health endpoint for monitoring uptime
 app.get('/health', (req, res) => {

@@ -62,18 +62,6 @@
       "minimum": 0,
       "maximum": 1
     },
-    "lat": {
-      "type": ["number", "null"],
-      "description": "Latitude in degrees for planet theaters (Iteration 2)",
-      "minimum": -90,
-      "maximum": 90
-    },
-    "lon": {
-      "type": ["number", "null"],
-      "description": "Longitude in degrees for planet theaters (Iteration 2)",
-      "minimum": -180,
-      "maximum": 180
-    },
     "assignedJobIds": {
       "type": "array",
       "description": "Job IDs assigned to this location (references into jobs.json)",

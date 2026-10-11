@@ -10,7 +10,7 @@ let DATA_FILE, SETTINGS_FILE, MANNA_FILE, CORE_MAJOR_FACILITIES_FILE;
 let MINOR_FACILITIES_SLOTS_FILE, FACTIONS_FILE, PILOTS_FILE;
 let RESERVES_FILE, STORE_CONFIG_FILE, VOTING_PERIODS_FILE;
 let THEATERS_FILE;
-let THEATER_ASSETS_DIR, PLANET_TEXTURES_DIR;
+let THEATER_ASSETS_DIR;
 let DEFAULT_RESERVES, DEFAULT_CORE_MAJOR_FACILITIES, DEFAULT_MINOR_FACILITIES;
 
 // Default settings object
@@ -49,7 +49,6 @@ function init(config) {
   VOTING_PERIODS_FILE = path.join(DATA_DIR, 'voting-periods.json');
   THEATERS_FILE = path.join(DATA_DIR, 'theaters.json');
   THEATER_ASSETS_DIR = path.join(DATA_DIR, 'theater_assets');
-  PLANET_TEXTURES_DIR = path.join(DATA_DIR, 'planet_textures');
 
   // Ensure directories exist
   if (!fs.existsSync(DATA_DIR)) {
@@ -60,9 +59,6 @@ function init(config) {
   }
   if (!fs.existsSync(THEATER_ASSETS_DIR)) {
     fs.mkdirSync(THEATER_ASSETS_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(PLANET_TEXTURES_DIR)) {
-    fs.mkdirSync(PLANET_TEXTURES_DIR, { recursive: true });
   }
 }
 
@@ -1133,8 +1129,6 @@ function migrateTheatersIfNeeded() {
   let needsMigration = false;
 
   const migratedTheaters = theaters.map(theater => {
-    const typeMissing = !theater.hasOwnProperty('type');
-    const textureMissing = !theater.hasOwnProperty('textureImage');
     const activeMissing = !theater.hasOwnProperty('active');
     const locationsMissing = !Array.isArray(theater.locations);
 
@@ -1145,8 +1139,6 @@ function migrateTheatersIfNeeded() {
         patched.assignedJobIds = Array.isArray(patched.assignedJobIds) ? patched.assignedJobIds : [];
         locationsChanged = true;
       }
-      if (!patched.hasOwnProperty('lat')) { patched.lat = null; locationsChanged = true; }
-      if (!patched.hasOwnProperty('lon')) { patched.lon = null; locationsChanged = true; }
       if (!patched.hasOwnProperty('childTheaterId')) { patched.childTheaterId = null; locationsChanged = true; }
       if (!patched.hasOwnProperty('iconColor')) { patched.iconColor = '#e0e0e0'; locationsChanged = true; }
       if (!patched.hasOwnProperty('iconEdgeColor')) { patched.iconEdgeColor = '#000000'; locationsChanged = true; }
@@ -1155,12 +1147,10 @@ function migrateTheatersIfNeeded() {
       return patched;
     });
 
-    if (typeMissing || textureMissing || activeMissing || locationsMissing || locationsChanged) {
+    if (activeMissing || locationsMissing || locationsChanged) {
       needsMigration = true;
       return {
         ...theater,
-        type: theater.type || 'flat',
-        textureImage: theater.hasOwnProperty('textureImage') ? theater.textureImage : null,
         // Existing theaters default to active (visible) unless explicitly set
         active: theater.hasOwnProperty('active') ? theater.active : true,
         locations
@@ -1171,14 +1161,13 @@ function migrateTheatersIfNeeded() {
 
   if (needsMigration) {
     writeTheaters(migratedTheaters);
-    console.log('Theaters migrated to include type, textureImage, and normalized location fields');
+    console.log('Theaters migrated to include active flag and normalized location fields');
   }
 }
 
 function getDataDir() { return DATA_DIR; }
 function getLogoArtDir() { return LOGO_ART_DIR; }
 function getTheaterAssetsDir() { return THEATER_ASSETS_DIR; }
-function getPlanetTexturesDir() { return PLANET_TEXTURES_DIR; }
 function getDefaultMinorFacilities() { return DEFAULT_MINOR_FACILITIES; }
 function getDefaultSettings() { return DEFAULT_SETTINGS; }
 
@@ -1276,7 +1265,6 @@ module.exports = {
   getDataDir,
   getLogoArtDir,
   getTheaterAssetsDir,
-  getPlanetTexturesDir,
   getDefaultMinorFacilities,
   getDefaultSettings,
   initializeAll

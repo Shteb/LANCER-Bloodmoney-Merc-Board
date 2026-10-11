@@ -109,25 +109,6 @@
   margin-bottom: 12px;
 }
 
-.theater-list-item {
-  padding: 6px 12px;
-  border: 1px solid var(--border-color);
-  background: var(--hover-bg);
-  color: var(--text-color);
-  cursor: pointer;
-}
-
-.theater-list-item:hover {
-  background: var(--button-bg);
-  color: var(--button-text);
-}
-
-.theater-list-item.active {
-  border-color: var(--glow-color);
-  color: var(--button-text);
-  background: var(--button-bg);
-}
-
 /* Location detail / assigned missions panel */
 .theater-location-panel {
   border: 1px solid var(--border-color);
@@ -472,11 +453,6 @@ button.client-theater-location-row:hover {
   filter: invert(1);
 }
 
-.theater-icon-option.selected {
-  border-color: var(--glow-color);
-  box-shadow: 0 0 8px var(--glow-color);
-}
-
 .theater-job-checklist {
   max-height: 180px;
   overflow-y: auto;
@@ -514,12 +490,6 @@ button.client-theater-location-row:hover {
    - each theater / the location editor is a dark card (.theater-item)
    - headings are white, secondary text is grey
    ------------------------------------------------------------------ */
-
-#theaters-tab .theater-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
 #theaters-tab .theater-list-item {
   padding: 8px 14px;
@@ -590,18 +560,6 @@ button.client-theater-location-row:hover {
 #theaters-tab .theater-marker.preview .theater-marker-icon {
   outline: 2px dashed #ff9800;
   outline-offset: 2px;
-}
-
-#theaters-tab .theater-location-panel {
-  background: #1a1a1a;
-  border: 1px solid #444;
-  color: #b0b0b0;
-}
-
-#theaters-tab .theater-location-panel h3,
-#theaters-tab .theater-location-panel h4 {
-  color: #ffffff;
-  text-shadow: none;
 }
 
 /* Map viewport on the admin side */

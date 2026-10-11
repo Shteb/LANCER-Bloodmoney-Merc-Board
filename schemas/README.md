@@ -83,13 +83,12 @@ This directory contains JSON Schema definitions for all data structures used in 
 
 17. **theater-location.schema.json** - Theater location marker schema
     - Defines a single location placed on an operational theater
-    - Flat theaters use normalized `x`/`y` (0..1); planet theaters use `lat`/`lon`
+    - Locations use normalized `x`/`y` (0..1) so markers survive map rescaling
     - `assignedJobIds` references Job `id` values (missions shown at that location)
     - Optional `childTheaterId` enables drill-down into a sublocation theater
 
 18. **theater.schema.json** - Operational theater schema
-    - Defines a theater: a flat 2D map (`type: "flat"`, `backgroundImage`)
-      or a planet sphere (`type: "planet"`, `textureImage`; Iteration 2)
+    - Defines a theater: a flat 2D map with a `backgroundImage`
     - Contains an array of locations (references theater-location.schema.json)
 
 19. **theaters.schema.json** - Theaters container schema

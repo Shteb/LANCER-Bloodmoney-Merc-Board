@@ -1,4 +1,8 @@
 /**
+ * I deciced to put it here, instead of adding another 700-odd lines to the
+ * already 3000+ lines in views\admin\_scripts.ejs.
+ * it breaks convention, but I still think it makes it easier to mantain end edit like this.
+ * 
  * Admin-side Operational Theater editor.
  * Handles theater CRUD, background upload, click-to-place locations,
  * drag-to-reposition, icon/color/scale, and job assignment.
@@ -87,10 +91,8 @@ function theaterAdminTheaterBody(theater, overrides) {
     name: theater.name,
     description: theater.description || '',
     galacticPos: theater.galacticPos || '',
-    type: theater.type || 'flat',
     active: theater.active !== false,
     backgroundImage: theater.backgroundImage || null,
-    textureImage: theater.textureImage || null,
     ...(overrides || {})
   };
 }
@@ -107,8 +109,6 @@ function theaterAdminLocationBody(location, overrides) {
     visibleToPlayers: location.visibleToPlayers !== false,
     x: typeof location.x === 'number' ? location.x : null,
     y: typeof location.y === 'number' ? location.y : null,
-    lat: typeof location.lat === 'number' ? location.lat : null,
-    lon: typeof location.lon === 'number' ? location.lon : null,
     assignedJobIds: location.assignedJobIds || [],
     childTheaterId: location.childTheaterId || null,
     ...(overrides || {})
@@ -121,13 +121,20 @@ function theaterAdminSetWarning(warning, show, message) {
   warning.textContent = show ? message : '';
 }
 
+// Mirrors getActiveJobIds in lib/theaterVisibility.js, for the editor's
+// "this still holds an active mission" warnings only. Not a permission check:
+// what a player actually sees is decided server-side.
+function theaterAdminActiveJobIds() {
+  return new Set(AdminTheaters.jobs.filter(job => job.state === 'Active').map(job => job.id));
+}
+
 function theaterAdminGetActiveJobsForTheater(theater) {
   if (!theater) return [];
   const assignedIds = new Set();
   (theater.locations || []).forEach(loc => {
     (loc.assignedJobIds || []).forEach(jobId => assignedIds.add(jobId));
   });
-  const activeJobIds = window.TheaterShared.getActiveJobIds(AdminTheaters.jobs);
+  const activeJobIds = theaterAdminActiveJobIds();
   return AdminTheaters.jobs.filter(job => assignedIds.has(job.id) && activeJobIds.has(job.id));
 }
 
@@ -152,7 +159,7 @@ function theaterAdminCreate() {
   fetch('/api/theaters', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, type: 'flat' })
+    body: JSON.stringify({ name })
   })
     .then(r => r.json())
     .then(res => {
@@ -171,7 +178,6 @@ function theaterAdminSaveDetails() {
     name: document.getElementById('admin-theater-name').value,
     description: document.getElementById('admin-theater-description').value,
     galacticPos: document.getElementById('admin-theater-galactic-pos').value,
-    type: document.getElementById('admin-theater-type').value,
     active: document.getElementById('admin-theater-active').checked
   });
   fetch('/api/theaters/' + theater.id, {
@@ -393,7 +399,6 @@ function theaterAdminRenderEditor() {
   document.getElementById('admin-theater-name').value = theater.name || '';
   document.getElementById('admin-theater-description').value = theater.description || '';
   document.getElementById('admin-theater-galactic-pos').value = theater.galacticPos || '';
-  document.getElementById('admin-theater-type').value = theater.type || 'flat';
   document.getElementById('admin-theater-active').checked = theater.active !== false;
   const activeCheckbox = document.getElementById('admin-theater-active');
   if (!activeCheckbox.dataset.warningBound) {
@@ -406,7 +411,7 @@ function theaterAdminRenderEditor() {
   theaterAdminRenderGallery();
 
   // Render map + markers with drag support
-  window.TheaterShared.renderFlatTheater(viewport, theater, {
+  window.TheaterMap.renderFlatTheater(viewport, theater, {
     onMarkerClick: (loc) => theaterAdminOpenLocationEditor(loc)
   });
 
@@ -419,7 +424,7 @@ function theaterAdminRenderEditor() {
     if (!AdminTheaters.placingMode) return;
     // Ignore clicks that land on an existing marker
     if (e.target.closest('.theater-marker')) return;
-    const coords = window.TheaterShared.viewportClickToNormalized(viewport, e);
+    const coords = window.TheaterMap.viewportClickToNormalized(viewport, e);
     AdminTheaters.pendingCoords = coords;
     AdminTheaters.placingMode = false;
     viewport.classList.remove('placing');
@@ -448,7 +453,7 @@ function theaterAdminEnableMarkerDrag(viewport, theater) {
       const onMouseMove = moveEvent => {
         if (!pointerDown || !dragging) return;
         moveEvent.preventDefault();
-        const coords = window.TheaterShared.viewportClickToNormalized(viewport, moveEvent);
+        const coords = window.TheaterMap.viewportClickToNormalized(viewport, moveEvent);
         marker.style.left = (coords.x * 100) + '%';
         marker.style.top = (coords.y * 100) + '%';
       };
@@ -467,7 +472,7 @@ function theaterAdminEnableMarkerDrag(viewport, theater) {
         // to drag immediately.
         if (!didDrag) return;
 
-        const coords = window.TheaterShared.viewportClickToNormalized(viewport, upEvent);
+        const coords = window.TheaterMap.viewportClickToNormalized(viewport, upEvent);
         const loc = (theater.locations || []).find(l => l.id === locId);
         if (!loc) return;
         // If this location's editor is open, persist its current (possibly
@@ -537,7 +542,7 @@ function theaterAdminUpdateLocationPreview() {
       ...theater,
       locations: [...(theater.locations || []), preview]
     };
-    window.TheaterShared.renderFlatTheater(viewport, previewTheater, {
+    window.TheaterMap.renderFlatTheater(viewport, previewTheater, {
       selectedLocationId: preview.id,
       onMarkerClick: loc => {
         if (loc.id !== '__location-preview__') theaterAdminOpenLocationEditor(loc);
@@ -549,14 +554,14 @@ function theaterAdminUpdateLocationPreview() {
   if (!marker) return;
 
   marker.classList.add('selected', 'preview');
-  window.TheaterShared.updateFlatTheaterMarker(marker, preview);
+  window.TheaterMap.updateFlatTheaterMarker(marker, preview);
 }
 
 function theaterAdminGetSelectedActiveJobs() {
   const selectedIds = new Set(Array.from(
     document.querySelectorAll('#admin-loc-jobs input[type="checkbox"]:checked')
   ).map(input => input.value));
-  const activeJobIds = window.TheaterShared.getActiveJobIds(AdminTheaters.jobs);
+  const activeJobIds = theaterAdminActiveJobIds();
   return AdminTheaters.jobs.filter(job => selectedIds.has(job.id) && activeJobIds.has(job.id));
 }
 

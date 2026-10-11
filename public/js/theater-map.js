@@ -1,6 +1,11 @@
 /**
- * Shared helpers for rendering flat (2D) operational theaters.
- * Used by both the admin editor and the client viewer.
+ * Renderer for flat (2D) operational theater maps: background image, location
+ * markers, and the coordinate maths that keeps markers aligned as the map
+ * scales. Loaded by both the admin editor (admin-theaters.js) and the client
+ * viewer (client-theaters.js) so a marker lands in the same spot in both.
+ *
+ * Rendering only -- it holds no visibility or permission logic. What a player
+ * is allowed to see is decided server-side in lib/theaterVisibility.js.
  */
 
 /**
@@ -202,45 +207,10 @@ function viewportClickToNormalized(viewport, event) {
   };
 }
 
-/**
- * Shared "is this visible to players" rules (mirrors lib/theaterVisibility.js
- * server-side). A hidden theater/location stays reachable to players while
- * it holds an active job, so a mission is never made unreachable.
- */
-function getActiveJobIds(jobs) {
-  return new Set((jobs || []).filter(job => job.state === 'Active').map(job => job.id));
-}
-
-function locationHasActiveJob(location, activeJobIds) {
-  return ((location && location.assignedJobIds) || []).some(jobId => activeJobIds.has(jobId));
-}
-
-function theaterIsVisibleToPlayers(theater, activeJobIds) {
-  return theater.active !== false || (theater.locations || []).some(location =>
-    locationHasActiveJob(location, activeJobIds)
-  );
-}
-
-function filterVisibleTheaters(theaters, jobs) {
-  const activeJobIds = getActiveJobIds(jobs);
-  return (theaters || [])
-    .filter(theater => theaterIsVisibleToPlayers(theater, activeJobIds))
-    .map(theater => ({
-      ...theater,
-      locations: (theater.locations || []).filter(location =>
-        location.visibleToPlayers !== false || locationHasActiveJob(location, activeJobIds)
-      )
-    }));
-}
-
 // Expose on window for use by non-module scripts
-window.TheaterShared = {
+window.TheaterMap = {
   renderFlatTheater,
   syncTheaterMapContent,
   updateFlatTheaterMarker,
-  viewportClickToNormalized,
-  getActiveJobIds,
-  locationHasActiveJob,
-  theaterIsVisibleToPlayers,
-  filterVisibleTheaters
+  viewportClickToNormalized
 };

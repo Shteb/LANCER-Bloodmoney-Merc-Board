@@ -3,7 +3,7 @@ const fs = require('fs');
 const helpers = require('../helpers');
 const dataStore = require('../models/dataStore');
 const { requireClientAuth, requireAdminAuth } = require('../middleware/auth');
-const { theaterIsVisibleToPlayers, getActiveJobIds, filterTheatersForPlayers } = require('../lib/theaterVisibility');
+const { theaterIsVisibleToPlayers, getActiveJobIds, theatersForPlayer } = require('../lib/theaterVisibility');
 
 const router = express.Router();
 
@@ -82,10 +82,11 @@ router.get('/client/jobs', requireClientAuth, (req, res) => {
   const settings = dataStore.readSettings();
   const factions = dataStore.readFactions();
   
-  // Enrich jobs with faction data
+  // Enrich jobs with faction data. Locations come from the player-visible
+  // theater set, so a job never names a location the pilot can't reach.
   const enrichedJobs = dataStore.enrichJobsWithLocations(
     dataStore.enrichJobsWithFactions(jobs, factions),
-    filterTheatersForPlayers(dataStore.readTheaters(), getActiveJobIds(allJobs))
+    theatersForPlayer(dataStore.readTheaters(), allJobs, settings)
   );
   res.render('client-jobs', { jobs: enrichedJobs, settings, colorScheme: settings.colorScheme });
 });
