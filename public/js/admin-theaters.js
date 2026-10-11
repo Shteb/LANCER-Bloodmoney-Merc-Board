@@ -31,6 +31,7 @@ function theaterAdminInit() {
       AdminTheaters.selectedTheaterId = AdminTheaters.theaters[0].id;
     }
     theaterAdminRender();
+    theaterAdminRenderJobLocationSelects();
   });
 }
 
@@ -44,7 +45,44 @@ function handleTheatersUpdate(data) {
         : null;
     }
     theaterAdminRender();
+    theaterAdminRenderJobLocationSelects();
   }
+}
+
+// The Add/Edit Job forms' Location dropdowns are rendered with the page, and
+// theater edits don't reload it. Rebuild them from live data, keeping each
+// dropdown's selection if that location still exists.
+function theaterAdminRenderJobLocationSelects() {
+  ['jobLocation', 'editJobLocation'].forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const selected = select.value;
+    select.innerHTML = '<option value="">None</option>';
+    AdminTheaters.theaters.forEach(theater => {
+      if (!(theater.locations || []).length) return;
+      const group = document.createElement('optgroup');
+      group.label = theater.name;
+      theater.locations.forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc.id;
+        opt.textContent = loc.name;
+        group.appendChild(opt);
+      });
+      select.appendChild(group);
+    });
+    select.value = selected;
+    if (select.selectedIndex === -1) select.value = '';
+  });
+}
+
+// The job's current location from live data; the page-load snapshot goes stale
+// as soon as a job is reassigned on the Theater tab.
+function theaterAdminLocationIdForJob(jobId) {
+  for (const theater of AdminTheaters.theaters) {
+    const loc = (theater.locations || []).find(l => (l.assignedJobIds || []).includes(jobId));
+    if (loc) return loc.id;
+  }
+  return '';
 }
 
 // Jobs can be created while the theater tab is open. Keep the assignment list

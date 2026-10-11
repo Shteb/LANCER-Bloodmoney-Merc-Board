@@ -1313,7 +1313,7 @@
       document.getElementById('editJobRank').value = jobData.rank;
       document.getElementById('editJobState').value = jobData.state || defaultJobState;
       document.getElementById('editJobFaction').value = jobData.factionId || '';
-      document.getElementById('editJobLocation').value = jobData.locationId || '';
+      document.getElementById('editJobLocation').value = theaterAdminLocationIdForJob(jobData.id);
       document.getElementById('editJobType').value = jobData.jobType;
       document.getElementById('editJobDescription').value = jobData.description;
       document.getElementById('editJobClientBrief').value = jobData.clientBrief;

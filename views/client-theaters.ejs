@@ -328,16 +328,9 @@
     function handleJobsUpdate(data) {
       if (data && Array.isArray(data.jobs)) {
         theaterState.jobs = data.jobs.filter(job => job.state === 'Active');
-        // A job becoming Active can make its otherwise-hidden location visible.
-        // Re-fetch the role-filtered theater data so that transition appears
-        // immediately even when the initial client payload omitted the location.
-        fetch('/api/theaters')
-          .then(response => response.json())
-          .then(theaters => {
-            theaterState.theaters = theaters || [];
-            reconcileSelectedTheater();
-            renderTheaterView();
-          });
+        // No render here: the server follows every jobs event with a theaters
+        // event (carrying any locations a newly Active job reveals), and
+        // handleTheatersUpdate renders with these jobs.
       }
     }
 

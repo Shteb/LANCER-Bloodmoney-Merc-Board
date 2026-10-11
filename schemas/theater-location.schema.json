@@ -44,7 +44,8 @@
     "iconScale": {
       "type": "number",
       "description": "Scale multiplier for the marker icon",
-      "minimum": 0.1
+      "minimum": 0.25,
+      "maximum": 4
     },
     "visibleToPlayers": {
       "type": "boolean",

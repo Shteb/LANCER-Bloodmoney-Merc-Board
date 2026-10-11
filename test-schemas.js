@@ -33,7 +33,8 @@ function validateAgainstSchema(data, schema, dataPath = 'root') {
 
           // Skip type checking for null values when the field is optional
           if (!(value === null && !isRequired)) {
-            if (propSchema.type !== actualType) {
+            // type may be a single name or a list, e.g. ["string", "null"]
+            if (![].concat(propSchema.type).includes(actualType)) {
               errors.push(`${dataPath}.${key}: Expected type '${propSchema.type}' but got '${actualType}'`);
             }
           }
@@ -168,6 +169,7 @@ results.push(testSchema(
   'slots'
 ));
 results.push(testSchema('schemas/settings.schema.json', 'data/settings.json', 'Settings', false));
+results.push(testSchema('schemas/theater.schema.json', 'data/theaters.json', 'Theater', true));
 
 // Summary
 console.log('\n' + '='.repeat(60));

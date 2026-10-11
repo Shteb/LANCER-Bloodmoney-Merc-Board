@@ -86,15 +86,19 @@ router.delete('/api/emblems/:filename', requireAdminAuth, async (req, res) => {
     });
   }
   
-  // Check if emblem is in use by any job or faction
+  // Check if emblem is in use by any job, faction, or theater location icon
   const jobs = dataStore.readJobs();
   const factions = dataStore.readFactions();
+  const theaters = dataStore.readTheaters();
   const inUseByJob = jobs.some(job => job.emblem === filename);
   const inUseByFaction = factions.some(faction => faction.emblem === filename);
-  if (inUseByJob || inUseByFaction) {
-    return res.status(409).json({ 
-      success: false, 
-      message: 'Cannot delete emblem: it is currently in use by one or more jobs or factions' 
+  const inUseByLocation = theaters.some(theater =>
+    (theater.locations || []).some(loc => loc.icon === filename)
+  );
+  if (inUseByJob || inUseByFaction || inUseByLocation) {
+    return res.status(409).json({
+      success: false,
+      message: 'Cannot delete emblem: it is currently in use by one or more jobs, factions, or locations'
     });
   }
   

@@ -7,6 +7,11 @@ const { broadcastTheaters } = require('../../lib/theaterBroadcast');
 
 const router = express.Router();
 
+const DEFAULT_LOCATION_ICON = 'token--world.svg';
+// Matches the Scale input's range in the location editor
+const ICON_SCALE_MIN = 0.25;
+const ICON_SCALE_MAX = 4;
+
 // ==================== Validation helpers ====================
 
 // Clamp a value to the [0, 1] range; returns null if not a finite number
@@ -14,6 +19,13 @@ function clampNormalized(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
   return Math.min(1, Math.max(0, num));
+}
+
+// Clamp an icon scale to the editor's range; defaults to 1 if not a finite number
+function clampIconScale(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 1;
+  return Math.min(ICON_SCALE_MAX, Math.max(ICON_SCALE_MIN, num));
 }
 
 // Validate and normalize theater-level data (name/description/background)
@@ -51,10 +63,14 @@ function validateLocationData(body, jobIds) {
     return { valid: false, message: nameValidation.message };
   }
 
-  // Icon must be a safe emblem filename if provided
+  // Icon must be a safe emblem filename if provided. One that is missing from
+  // logo_art (e.g. deleted since) falls back to the placeholder icon.
   let icon = body.icon ? String(body.icon) : '';
   if (icon && !helpers.isSafeEmblemFilename(icon)) {
     return { valid: false, message: 'Invalid location icon filename' };
+  }
+  if (!icon || !helpers.validateEmblem(icon, dataStore.getLogoArtDir()).valid) {
+    icon = DEFAULT_LOCATION_ICON;
   }
 
   // Validate assignedJobIds (all must exist in jobs)
@@ -82,10 +98,10 @@ function validateLocationData(body, jobIds) {
     name: nameValidation.value,
     description: (body.description || '').toString().trim(),
     galacticPos: (body.galacticPos || '').toString().trim(),
-    icon: icon || 'token--world.svg',
+    icon,
     iconColor: body.iconColor ? String(body.iconColor) : '#e0e0e0',
     iconEdgeColor: body.iconEdgeColor ? String(body.iconEdgeColor) : '#000000',
-    iconScale: Number.isFinite(Number(body.iconScale)) ? Number(body.iconScale) : 1,
+    iconScale: clampIconScale(body.iconScale),
     visibleToPlayers: !(body.visibleToPlayers === false || body.visibleToPlayers === 'false'),
     x: clampNormalized(body.x),
     y: clampNormalized(body.y),

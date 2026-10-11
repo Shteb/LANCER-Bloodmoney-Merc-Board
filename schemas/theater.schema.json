@@ -7,7 +7,6 @@
   "required": [
     "id",
     "name",
-    "type",
     "locations"
   ],
   "properties": {

@@ -2,32 +2,9 @@ const express = require('express');
 const helpers = require('../../helpers');
 const dataStore = require('../../models/dataStore');
 const { requireAnyAuth, requireAdminAuth } = require('../../middleware/auth');
-const { broadcastSSE } = require('../../lib/sseManager');
-
-const { theatersForPlayer } = require('../../lib/theaterVisibility');
-const { broadcastTheaters } = require('../../lib/theaterBroadcast');
+const { enrichJobs, broadcastJobs } = require('../../lib/jobBroadcast');
 
 const router = express.Router();
-
-// Enrich jobs with faction + assigned location data. A non-admin must not learn
-// a location exists by seeing it named on a job, so they get the filtered view.
-function enrichJobs(jobs, isAdmin = false) {
-  const withFactions = dataStore.enrichJobsWithFactions(jobs, dataStore.readFactions());
-  const theaters = dataStore.readTheaters();
-  return dataStore.enrichJobsWithLocations(
-    withFactions,
-    isAdmin ? theaters : theatersForPlayer(theaters, jobs, dataStore.readSettings())
-  );
-}
-
-// Broadcast a jobs update, enriched per recipient: an admin must still see the
-// locations a player is not allowed to.
-function broadcastJobs(payload) {
-  broadcastSSE('jobs', payload, (data, role) => ({
-    ...data,
-    jobs: enrichJobs(data.jobs, role === 'admin')
-  }));
-}
 
 // Check body.locationId names a real location. Run before the job is written.
 function validateLocationId(locationId) {
@@ -41,11 +18,10 @@ function validateLocationId(locationId) {
 
 // Write the job's location assignment. Must run *after* the job itself is
 // saved: the assignment lives on the theater and would otherwise point at a
-// job that does not exist if the job write failed.
+// job that does not exist if the job write failed. broadcastJobs announces it.
 function applyLocation(jobId, locationId) {
   if (locationId === undefined) return;
-  const theaters = dataStore.setJobLocation(jobId, String(locationId || ''));
-  if (theaters) broadcastTheaters({ action: 'location-update', theaters });
+  dataStore.setJobLocation(jobId, String(locationId || ''));
 }
 
 router.get('/', requireAnyAuth, (req, res) => {
