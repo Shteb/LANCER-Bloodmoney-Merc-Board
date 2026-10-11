@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/theaters.schema.json",
+  "title": "Theaters Collection",
+  "description": "The full collection of operational theaters (data/theaters.json)",
+  "type": "array",
+  "items": { "$ref": "theater.schema.json" }
+}

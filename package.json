@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "build": "pkg .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test-schemas.js && node test-theaters.js"
   },
   "keywords": [
     "lancer",

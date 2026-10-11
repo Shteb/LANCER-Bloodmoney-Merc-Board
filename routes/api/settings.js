@@ -51,6 +51,9 @@ router.put('/', requireAdminAuth, (req, res) => {
   
   // Parse openTable boolean
   const openTable = req.body.openTable === 'true' || req.body.openTable === true;
+
+  // Parse theatersVisible boolean
+  const theatersVisible = req.body.theatersVisible === 'true' || req.body.theatersVisible === true;
   
   // Validate passwords (alphanumeric only, empty allowed)
   const clientPasswordValidation = helpers.validatePassword(req.body.clientPassword, 'Pilot Password');
@@ -102,6 +105,7 @@ router.put('/', requireAdminAuth, (req, res) => {
     userGroup: userGroupValidation.value,
     operationProgress: operationProgress,
     openTable: openTable,
+    theatersVisible: theatersVisible,
     clientPassword: clientPasswordValidation.value,
     adminPassword: adminPasswordValidation.value,
     facilityCostModifier: facilityCostModifier,

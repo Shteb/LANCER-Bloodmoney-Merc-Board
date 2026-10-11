@@ -1,0 +1,711 @@
+/* ==================== Operational Theater Styles ==================== */
+
+#theaters-tab [hidden],
+.client-theaters-container [hidden] {
+  display: none !important;
+}
+
+/* Side-by-side layout: map on the left, detail/editor panel on the right */
+.theater-workspace {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.theater-workspace-map {
+  flex: 1 1 600px;
+  min-width: 320px;
+}
+
+.theater-workspace-side {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+/* Shared map viewport used by both admin editor and client viewer */
+.theater-map-viewport {
+  position: relative;
+  width: 100%;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.theater-map-viewport.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+/* Sized/positioned in JS (syncTheaterMapContent) to exactly match the
+   background image's rendered rect, so % marker positions stay accurate
+   regardless of viewport aspect ratio. */
+.theater-map-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.theater-map-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Location markers overlaid on the map (normalized coords) */
+.theater-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+
+/* Color-tinted marker icon: the emblem SVG is used as a mask and filled with
+   the location's chosen color (set inline in theaters-shared.js). */
+.theater-marker-icon {
+  display: inline-block;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+}
+
+.theater-marker .theater-marker-label {
+  margin-top: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--bg-color);
+  padding: 1px 4px;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.theater-marker.selected .theater-marker-icon {
+  outline: 2px solid var(--glow-color);
+  outline-offset: 2px;
+}
+
+/* Editor placement mode indicator */
+.theater-map-viewport.placing {
+  cursor: crosshair;
+}
+
+/* Theater list (admin + client selector) */
+.theater-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Location detail / assigned jobs panel */
+.theater-location-panel {
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  background: var(--card-bg);
+  color: var(--text-color);
+}
+
+.theater-location-panel h3,
+.theater-location-panel h4 {
+  margin-top: 0;
+  color: var(--text-color);
+  text-shadow: 0 0 5px var(--text-color);
+}
+
+.theater-location-panel p {
+  color: var(--text-color);
+}
+
+.theater-assigned-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theater-assigned-job {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  background: var(--hover-bg);
+  color: var(--text-color);
+}
+
+.theater-assigned-job:hover {
+  border-color: var(--glow-color);
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+
+/* ==================== Client theater directory ==================== */
+.client-theaters-container {
+  max-width: 1200px;
+  margin: 30px auto;
+}
+
+.client-theater-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.client-theater-card,
+.client-theater-map-card,
+.client-theater-info-card {
+  border: 2px solid var(--border-color);
+  padding: 20px;
+  background: rgba(30, 30, 30, 0.4);
+}
+
+.client-theater-card {
+  min-height: 210px;
+  cursor: pointer;
+  transition: min-height 0.55s ease, padding 0.55s ease, opacity 0.35s ease,
+    background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.client-theater-card:hover,
+.client-theater-card.active {
+  background-color: var(--hover-bg);
+  box-shadow: 0 0 20px var(--border-color);
+}
+
+.client-theater-card.subdued {
+  opacity: 0.42;
+  min-height: 0;
+  height: fit-content;
+}
+
+.client-theater-card.active,
+.client-theater-card.subdued {
+  min-height: 0;
+  padding: 7px 12px;
+}
+
+.client-theater-card.active .client-theater-card-body,
+.client-theater-card.subdued .client-theater-card-body {
+  max-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: max-height 0.55s ease, opacity 0.25s ease,
+    transform 0.35s ease, visibility 0s linear 0.55s;
+}
+
+.client-theater-card-body {
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+  visibility: visible;
+  transform: translateY(0);
+  transition: max-height 0.55s ease, opacity 0.35s ease 0.1s,
+    transform 0.4s ease 0.05s, visibility 0s;
+}
+
+.client-theater-card h2,
+.client-theater-info-card h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-color);
+  text-shadow: 0 0 5px var(--text-color);
+}
+
+.client-theater-card.active h2,
+.client-theater-card.subdued h2 {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.client-theater-galactic-pos {
+  min-height: 18px;
+  margin-top: 2px;
+  color: var(--label-color);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.client-theater-back-link {
+  align-self: flex-start;
+  border: 0;
+  margin: 2px 0 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-color);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.client-theater-back-link:hover,
+.client-theater-back-link:focus-visible {
+  text-shadow: 0 0 10px var(--text-color);
+}
+
+.client-theater-card.active .client-theater-galactic-pos,
+.client-theater-card.subdued .client-theater-galactic-pos {
+  display: none;
+}
+
+.client-theater-divider {
+  border-bottom: 1px solid var(--border-color);
+  margin: 12px 0 14px;
+}
+
+.client-theater-description {
+  min-height: 48px;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.client-theater-field-label,
+.client-theater-info-card h4 {
+  margin: 0 0 7px;
+  color: var(--label-color);
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: none;
+}
+
+.client-theater-location-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.client-theater-location-row {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--text-color);
+  font: inherit;
+  text-align: left;
+}
+
+button.client-theater-location-row {
+  cursor: pointer;
+}
+
+button.client-theater-location-row:hover {
+  text-shadow: 0 0 8px var(--text-color);
+}
+
+.client-theater-muted,
+.client-theaters-empty {
+  opacity: 0.6;
+}
+
+.client-theaters-empty {
+  grid-column: 1 / -1;
+  padding: 30px 0;
+}
+
+/* max-height is the ONLY geometry-shrinking property here. The old version
+   also animated clip-path in parallel, and the two mechanisms clipped the
+   box from different reference frames at once, which is what made it
+   disappear in two uneven halves instead of collapsing cleanly. */
+.selected-theater-section {
+  margin-top: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: max-height 0.5s ease, margin-top 0.5s ease,
+    opacity 0.3s ease, visibility 0s linear 0.5s;
+}
+
+.selected-theater-section.visible {
+  margin-top: 35px;
+  max-height: 900px;
+  opacity: 1;
+  visibility: visible;
+  transition: max-height 0.5s ease, margin-top 0.5s ease,
+    opacity 0.4s ease 0.1s, visibility 0s;
+}
+
+.selected-theater-label {
+  margin-bottom: 18px;
+  font-size: 22px;
+  text-shadow: 0 0 8px var(--text-color);
+}
+
+.client-theater-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.client-theater-workspace.switching-theater {
+  animation: client-theater-switch 0.2s ease-out;
+}
+
+@keyframes client-theater-switch {
+  from {
+    opacity: 0.35;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-theater-workspace.switching-theater {
+    animation: none;
+  }
+}
+
+.client-theater-map-card,
+.client-theater-info-card {
+  height: 500px;
+  min-width: 0;
+}
+
+.client-theater-map-card .theater-map-viewport {
+  height: 100%;
+  aspect-ratio: auto;
+  border: none;
+}
+
+.client-theater-map-card .theater-map-viewport::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--border-color) 50%, transparent 50%),
+    linear-gradient(to right, var(--border-color) 50%, transparent 50%),
+    linear-gradient(to bottom, var(--border-color) 50%, transparent 50%),
+    linear-gradient(to bottom, var(--border-color) 50%, transparent 50%);
+  background-position: top, bottom, left, right;
+  background-size: 12px 1px, 12px 1px, 1px 12px, 1px 12px;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+}
+
+.client-theater-info-card {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.client-theater-info-card > p {
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.client-theater-description,
+.client-theater-info-card > p {
+  padding-left: 10px;
+}
+
+.client-theater-child-link {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 900px) {
+  .client-theater-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .client-theater-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .client-theater-map-card,
+  .client-theater-info-card {
+    height: auto;
+    min-height: 360px;
+  }
+
+  .client-theater-map-card .theater-map-viewport {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .client-theater-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.theater-icon-option {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 2px;
+  /* Emblem SVGs are dark; invert so they show on the dark theme */
+  filter: invert(1);
+}
+
+.theater-job-checklist {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  padding: 6px;
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+.theater-job-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.theater-job-checklist input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+}
+
+.theater-job-checklist .theater-job-label-text {
+  min-width: 0;
+  line-height: 18px;
+}
+
+/* ==================== Admin tab styling ====================
+   The admin panel does not use the client.css theme variables, so these
+   rules give the theater tab the same look as the Faction tab:
+   - the tab container is the medium-grey .add-job-section
+   - each theater / the location editor is a dark card (.theater-item)
+   - headings are white, secondary text is grey
+   ------------------------------------------------------------------ */
+
+#theaters-tab .theater-list-item {
+  padding: 8px 14px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+#theaters-tab .theater-list-item:hover {
+  background: #2a2a2a;
+  border-color: #666;
+  color: #ffffff;
+}
+
+#theaters-tab .theater-list-item.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: #ffffff;
+}
+
+/* Inactive (player-hidden) theaters are dimmed in the GM list */
+#theaters-tab .theater-list-item.theater-inactive {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+/* Dark card for the location editor, matching .faction-item */
+#theaters-tab .theater-item {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 20px;
+  color: #b0b0b0;
+}
+
+#theaters-tab .theater-item h3 {
+  color: #ffffff;
+  margin-top: 0;
+}
+
+#theaters-tab .theater-visibility-warning {
+  margin: -10px 0 18px;
+  padding: 10px;
+  border: 1px solid #ff9800;
+  background: #3a2a1a;
+  color: #ffd180;
+  line-height: 1.4;
+}
+
+#theaters-tab .theater-admin-muted {
+  color: #b0b0b0;
+}
+
+#theaters-tab .theater-admin-empty {
+  opacity: 0.6;
+}
+
+#theaters-tab .theater-scale-label {
+  margin-left: 12px;
+}
+
+#theaters-tab .theater-scale-input {
+  width: 70px;
+}
+
+#theaters-tab .theater-marker.preview .theater-marker-icon {
+  outline: 2px dashed #ff9800;
+  outline-offset: 2px;
+}
+
+/* Map viewport on the admin side */
+#theaters-tab .theater-map-viewport {
+  border: 2px solid #444;
+  background: #0a0a0a;
+}
+
+#theaters-tab .theater-map-viewport.empty {
+  color: #b0b0b0;
+}
+
+/* Icon picker grid */
+#theaters-tab .theater-icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #444;
+  background: #0d0d0d;
+  padding: 6px;
+}
+
+#theaters-tab .theater-icon-option.selected {
+  border-color: #007bff;
+  box-shadow: 0 0 8px #007bff;
+}
+
+/* Job assignment checklist */
+#theaters-tab .theater-job-checklist {
+  background: #0d0d0d;
+  border: 1px solid #444;
+  color: #e0e0e0;
+}
+
+/* Marker labels on the admin map */
+#theaters-tab .theater-marker .theater-marker-label {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid #444;
+  color: #e0e0e0;
+}
+
+#theaters-tab .theater-marker.selected .theater-marker-icon {
+  outline: 2px solid #007bff;
+}
+
+/* Inline checkbox + label (not vertically stacked/centered) */
+#theaters-tab .theater-inline-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+#theaters-tab .theater-inline-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+#theaters-tab .theater-inline-check label {
+  margin: 0;
+  color: #e0e0e0;
+}
+
+/* Horizontal gallery of previously uploaded background images */
+#theaters-tab .theater-bg-gallery {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px;
+  border: 1px solid #444;
+  background: #0d0d0d;
+  min-height: 60px;
+}
+
+#theaters-tab .theater-bg-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 60px;
+  border: 2px solid #444;
+  background: #000;
+  cursor: pointer;
+}
+
+#theaters-tab .theater-bg-thumb.selected {
+  border-color: #007bff;
+  box-shadow: 0 0 8px #007bff;
+}
+
+#theaters-tab .theater-bg-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+#theaters-tab .theater-bg-thumb-delete {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  line-height: 14px;
+  padding: 0;
+  border: 1px solid #444;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#theaters-tab .theater-bg-thumb-delete:hover:not(:disabled) {
+  background: #ff4444;
+  color: #ffffff;
+}
+
+#theaters-tab .theater-bg-thumb-delete:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Color picker rendered as a compact square swatch (not a wide bar) */
+.theater-color-swatch {
+  width: 40px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid #444;
+  background: #0d0d0d;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.theater-color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.theater-color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+.theater-color-swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 2px;
+}

@@ -14,8 +14,8 @@ router.get('/api/sse', requireAnyAuth, (req, res) => {
   // Send initial connection message
   res.write('event: connected\ndata: {"message":"SSE connection established"}\n\n');
   
-  // Add client to set
-  addClient(res);
+  // Add client to set (tagged with role so broadcasts can be role-filtered)
+  addClient(res, req.session && req.session.role);
   
   // Send keep-alive every 30 seconds
   const keepAliveInterval = setInterval(() => {

@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/theater.schema.json",
+  "title": "Theater",
+  "description": "An operational theater: a flat map with location markers",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "locations"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Theater name",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Theater description (optional)"
+    },
+    "galacticPos": {
+      "type": "string",
+      "description": "Optional galactic position displayed beneath the theater name"
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Whether the theater is visible to players; inactive theaters remain visible while one of their locations contains an active job"
+    },
+    "backgroundImage": {
+      "type": ["string", "null"],
+      "description": "Filename of the flat background map (served via /theater-assets)"
+    },
+    "locations": {
+      "type": "array",
+      "description": "Location markers on this theater",
+      "items": { "$ref": "theater-location.schema.json" }
+    }
+  },
+  "additionalProperties": false,
+  "notes": [
+    "Flat theaters use normalized x/y (0..1) for resolution-independent markers.",
+    "Locations may reference a childTheaterId to enable drill-down sublocations.",
+    "Assigned jobs are stored as references (job IDs) into jobs.json; job data itself is never duplicated."
+  ]
+}

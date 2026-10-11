@@ -9,6 +9,8 @@ let DATA_DIR, LOGO_ART_DIR;
 let DATA_FILE, SETTINGS_FILE, MANNA_FILE, CORE_MAJOR_FACILITIES_FILE;
 let MINOR_FACILITIES_SLOTS_FILE, FACTIONS_FILE, PILOTS_FILE;
 let RESERVES_FILE, STORE_CONFIG_FILE, VOTING_PERIODS_FILE;
+let THEATERS_FILE;
+let THEATER_ASSETS_DIR;
 let DEFAULT_RESERVES, DEFAULT_CORE_MAJOR_FACILITIES, DEFAULT_MINOR_FACILITIES;
 
 // Default settings object
@@ -20,6 +22,7 @@ const DEFAULT_SETTINGS = {
   userGroup: 'FREELANCE_OPERATORS',
   operationProgress: 0,
   openTable: false,
+  theatersVisible: true,
   clientPassword: 'IMHOTEP',
   adminPassword: 'TARASQUE',
   facilityCostModifier: 0,
@@ -44,6 +47,8 @@ function init(config) {
   RESERVES_FILE = path.join(DATA_DIR, 'reserves.json');
   STORE_CONFIG_FILE = path.join(DATA_DIR, 'store-config.json');
   VOTING_PERIODS_FILE = path.join(DATA_DIR, 'voting-periods.json');
+  THEATERS_FILE = path.join(DATA_DIR, 'theaters.json');
+  THEATER_ASSETS_DIR = path.join(DATA_DIR, 'theater_assets');
 
   // Ensure directories exist
   if (!fs.existsSync(DATA_DIR)) {
@@ -51,6 +56,9 @@ function init(config) {
   }
   if (!fs.existsSync(LOGO_ART_DIR)) {
     fs.mkdirSync(LOGO_ART_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(THEATER_ASSETS_DIR)) {
+    fs.mkdirSync(THEATER_ASSETS_DIR, { recursive: true });
   }
 }
 
@@ -217,6 +225,62 @@ function enrichJobsWithFactions(jobs, factions) {
     ...job,
     faction: factionMap[job.factionId] || null
   }));
+}
+
+// Helper function to enrich jobs with their assigned theater location.
+// Assignment lives on the location (assignedJobIds); a job shows the first match.
+function enrichJobsWithLocations(jobs, theaters) {
+  const locationByJob = {};
+  theaters.forEach(theater => {
+    (theater.locations || []).forEach(loc => {
+      (loc.assignedJobIds || []).forEach(jobId => {
+        if (!locationByJob[jobId]) {
+          locationByJob[jobId] = { id: loc.id, name: loc.name, theaterId: theater.id, theaterName: theater.name };
+        }
+      });
+    });
+  });
+  return jobs.map(job => {
+    const location = locationByJob[job.id] || null;
+    return { ...job, location, locationId: location ? location.id : '' };
+  });
+}
+
+// A job belongs to one location at a time: drop the given jobs from every
+// location except keepLocationId. Mutates theaters; returns true if it changed.
+function unassignJobsElsewhere(theaters, jobIds, keepLocationId) {
+  const moving = new Set(jobIds);
+  if (moving.size === 0) return false;
+  let changed = false;
+  theaters.forEach(theater => {
+    (theater.locations || []).forEach(loc => {
+      if (loc.id === keepLocationId) return;
+      const ids = loc.assignedJobIds || [];
+      if (ids.some(id => moving.has(id))) {
+        loc.assignedJobIds = ids.filter(id => !moving.has(id));
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
+// Move a job to a single location (empty/unknown locationId = unassign everywhere).
+// Returns the updated theaters when they were changed and written.
+function setJobLocation(jobId, locationId) {
+  const theaters = readTheaters();
+  let changed = unassignJobsElsewhere(theaters, [jobId], locationId);
+  theaters.forEach(theater => {
+    (theater.locations || []).forEach(loc => {
+      const ids = loc.assignedJobIds || [];
+      if (loc.id === locationId && !ids.includes(jobId)) {
+        loc.assignedJobIds = [...ids, jobId];
+        changed = true;
+      }
+    });
+  });
+  if (changed) writeTheaters(theaters);
+  return changed ? theaters : null;
 }
 
 // Helper function to enrich all factions with job counts
@@ -1049,8 +1113,75 @@ async function archiveOngoingVotingPeriod(reason) {
   }
 }
 
+// ==================== THEATERS ====================
+
+// Read Theaters
+function readTheaters() {
+  try {
+    const data = fs.readFileSync(THEATERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+// Write Theaters
+function writeTheaters(theaters) {
+  fs.writeFileSync(THEATERS_FILE, JSON.stringify(theaters, null, 2));
+}
+
+// Initialize theaters with an empty collection
+function initializeTheaters() {
+  if (!fs.existsSync(THEATERS_FILE)) {
+    writeTheaters([]);
+  }
+}
+
+// Migrate theaters to ensure all fields exist (one-time / idempotent operation)
+function migrateTheatersIfNeeded() {
+  const theaters = readTheaters();
+  let needsMigration = false;
+
+  const migratedTheaters = theaters.map(theater => {
+    const activeMissing = !theater.hasOwnProperty('active');
+    const locationsMissing = !Array.isArray(theater.locations);
+
+    let locationsChanged = false;
+    const locations = (Array.isArray(theater.locations) ? theater.locations : []).map(loc => {
+      const patched = { ...loc };
+      if (!patched.hasOwnProperty('assignedJobIds') || !Array.isArray(patched.assignedJobIds)) {
+        patched.assignedJobIds = Array.isArray(patched.assignedJobIds) ? patched.assignedJobIds : [];
+        locationsChanged = true;
+      }
+      if (!patched.hasOwnProperty('childTheaterId')) { patched.childTheaterId = null; locationsChanged = true; }
+      if (!patched.hasOwnProperty('iconColor')) { patched.iconColor = '#e0e0e0'; locationsChanged = true; }
+      if (!patched.hasOwnProperty('iconEdgeColor')) { patched.iconEdgeColor = '#000000'; locationsChanged = true; }
+      if (!patched.hasOwnProperty('iconScale')) { patched.iconScale = 1; locationsChanged = true; }
+      if (!patched.hasOwnProperty('visibleToPlayers')) { patched.visibleToPlayers = true; locationsChanged = true; }
+      return patched;
+    });
+
+    if (activeMissing || locationsMissing || locationsChanged) {
+      needsMigration = true;
+      return {
+        ...theater,
+        // Existing theaters default to active (visible) unless explicitly set
+        active: theater.hasOwnProperty('active') ? theater.active : true,
+        locations
+      };
+    }
+    return theater;
+  });
+
+  if (needsMigration) {
+    writeTheaters(migratedTheaters);
+    console.log('Theaters migrated to include active flag and normalized location fields');
+  }
+}
+
 function getDataDir() { return DATA_DIR; }
 function getLogoArtDir() { return LOGO_ART_DIR; }
+function getTheaterAssetsDir() { return THEATER_ASSETS_DIR; }
 function getDefaultMinorFacilities() { return DEFAULT_MINOR_FACILITIES; }
 function getDefaultSettings() { return DEFAULT_SETTINGS; }
 
@@ -1064,6 +1195,7 @@ function initializeAll() {
   initializeStoreConfig();
   initializePilots();
   initializeVotingPeriods();
+  initializeTheaters();
 
   // Migrate base modules to facilities (clean break migration)
   migrateBaseToFacilities();
@@ -1086,6 +1218,9 @@ function initializeAll() {
 
   // Migrate existing store config
   migrateStoreConfigIfNeeded();
+
+  // Migrate existing theaters
+  migrateTheatersIfNeeded();
 }
 
 module.exports = {
@@ -1097,6 +1232,9 @@ module.exports = {
   migrateJobsIfNeeded,
   createFactionMap,
   enrichJobsWithFactions,
+  enrichJobsWithLocations,
+  setJobLocation,
+  unassignJobsElsewhere,
   enrichAllFactions,
   enrichPilotsWithBalance,
   validateJobData,
@@ -1135,8 +1273,13 @@ module.exports = {
   writeVotingPeriods,
   initializeVotingPeriods,
   archiveOngoingVotingPeriod,
+  readTheaters,
+  writeTheaters,
+  initializeTheaters,
+  migrateTheatersIfNeeded,
   getDataDir,
   getLogoArtDir,
+  getTheaterAssetsDir,
   getDefaultMinorFacilities,
   getDefaultSettings,
   initializeAll

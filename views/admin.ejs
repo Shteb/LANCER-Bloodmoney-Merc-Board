@@ -21,6 +21,7 @@
     <button class="tab-button" onclick="switchTab('base', event)">Base Config</button>
     <button class="tab-button" onclick="switchTab('pilots', event)">Pilot Config</button>
     <button class="tab-button" onclick="switchTab('store', event)">Shop & Reserves Config</button>
+    <button class="tab-button" onclick="switchTab('theaters', event)">Theater Config</button>
   </div>
 
   <%- include('admin/_tab-overview') %>
@@ -31,6 +32,9 @@
   <%- include('admin/_tab-factions') %>
   <%- include('admin/_tab-store') %>
   <%- include('admin/_tab-vote') %>
+  <%- include('admin/_tab-theaters') %>
   <%- include('admin/_modals') %>
   <%- include('admin/_scripts') %>
+  <script src="/js/theater-map.js"></script>
+  <script src="/js/admin-theaters.js"></script>
 </body></html>

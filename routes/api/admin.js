@@ -2,6 +2,7 @@ const express = require('express');
 const dataStore = require('../../models/dataStore');
 const { requireAdminAuth } = require('../../middleware/auth');
 const { broadcastSSE } = require('../../lib/sseManager');
+const { broadcastJobs } = require('../../lib/jobBroadcast');
 
 const router = express.Router();
 
@@ -47,9 +48,9 @@ router.post('/jobs/progress-all', requireAdminAuth, async (req, res) => {
   dataStore.writePilots(updatedPilots);
   
   // Broadcast SSE updates
-  broadcastSSE('jobs', { action: 'progress-all', jobs: updatedJobs });
+  broadcastJobs({ action: 'progress-all', jobs: updatedJobs });
   broadcastSSE('pilots', { action: 'update-multiple', pilots: updatedPilots });
-  
+
   res.json({ 
     success: true, 
     jobsProgressed: jobsModified,

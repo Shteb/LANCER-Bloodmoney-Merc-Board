@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lancer-job-board.local/schemas/theater-location.schema.json",
+  "title": "Theater Location",
+  "description": "A location marker placed on an operational theater",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "assignedJobIds"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Location name",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Location description (optional)"
+    },
+    "galacticPos": {
+      "type": "string",
+      "description": "Optional galactic position displayed beneath the location name"
+    },
+    "icon": {
+      "type": "string",
+      "description": "SVG filename from logo_art directory used as the marker icon",
+      "pattern": "^[A-Za-z0-9_-]+\\.svg$"
+    },
+    "iconColor": {
+      "type": "string",
+      "description": "CSS color used as the fill (body) of the marker icon"
+    },
+    "iconEdgeColor": {
+      "type": "string",
+      "description": "CSS color reserved for the marker icon edge/outline (no UI control yet; kept for a future iteration)"
+    },
+    "iconScale": {
+      "type": "number",
+      "description": "Scale multiplier for the marker icon",
+      "minimum": 0.25,
+      "maximum": 4
+    },
+    "visibleToPlayers": {
+      "type": "boolean",
+      "description": "Whether this location marker is visible to players"
+    },
+    "x": {
+      "type": ["number", "null"],
+      "description": "Normalized horizontal position (0..1) for flat theaters",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "y": {
+      "type": ["number", "null"],
+      "description": "Normalized vertical position (0..1) for flat theaters",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "assignedJobIds": {
+      "type": "array",
+      "description": "Job IDs assigned to this location (references into jobs.json)",
+      "items": { "type": "string" }
+    },
+    "childTheaterId": {
+      "type": ["string", "null"],
+      "description": "Optional theater ID to drill into from this location (sublocations)"
+    }
+  },
+  "additionalProperties": false
+}

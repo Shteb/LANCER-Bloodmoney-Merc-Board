@@ -1,0 +1,147 @@
+<!-- Operational Theaters Config Tab -->
+<div id="theaters-tab" class="tab-content">
+  <link rel="stylesheet" href="/css/theaters.css">
+
+  <!-- Create + edit section (styled like the "Add New Faction" section) -->
+  <div class="add-job-section">
+    <h2>Operational Theaters</h2>
+    <p class="theater-admin-muted">Define theaters (background maps), place locations on them, and assign jobs from the job stack to those locations.</p>
+
+    <div class="form-group">
+      <button type="button" class="btn btn-primary" onclick="theaterAdminCreate()">Add New Theater</button>
+    </div>
+
+    <!-- Theater selector -->
+    <div class="form-group">
+      <label>Select Theater</label>
+      <div class="theater-list" id="admin-theater-list">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Selected theater editor -->
+    <div id="admin-theater-editor" hidden>
+      <div class="form-group">
+        <label for="admin-theater-name">Theater Name</label>
+        <input type="text" id="admin-theater-name">
+      </div>
+
+      <div class="form-group theater-inline-check">
+        <input type="checkbox" id="admin-theater-active" checked>
+        <label for="admin-theater-active">Show to players</label>
+      </div>
+      <div id="admin-theater-visibility-warning" class="theater-visibility-warning" hidden></div>
+
+      <div class="form-group">
+        <label for="admin-theater-description">Description</label>
+        <textarea id="admin-theater-description" rows="2"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="admin-theater-galactic-pos">Galactic Position (optional)</label>
+        <input type="text" id="admin-theater-galactic-pos">
+      </div>
+
+      <div class="form-group">
+        <label for="admin-theater-bg-file">Background Map</label>
+        <input type="file" id="admin-theater-bg-file" accept="image/png,image/jpeg,image/bmp">
+        <button type="button" class="btn btn-neutral" onclick="theaterAdminUploadBackground()">Upload Map</button>
+        <span id="admin-theater-bg-status" class="theater-admin-muted"></span>
+      </div>
+
+      <!-- Gallery of previously uploaded background images -->
+      <div class="form-group">
+        <label>Uploaded Backgrounds (click to use, ✕ to delete)</label>
+        <div class="theater-bg-gallery" id="admin-theater-bg-gallery">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="form-group">
+        <button type="button" class="btn btn-primary" onclick="theaterAdminSaveDetails()">Save Details</button>
+        <button type="button" class="btn btn-delete" onclick="theaterAdminDelete()">Delete Theater</button>
+      </div>
+
+      <div class="form-group">
+        <button type="button" class="btn btn-neutral" id="admin-place-toggle" onclick="theaterAdminTogglePlacement()">Place New Location</button>
+        <span id="admin-place-hint" class="theater-admin-muted"></span>
+      </div>
+
+      <!-- Map + location editor side by side -->
+      <div class="theater-workspace">
+        <div class="theater-workspace-map">
+          <div class="theater-map-viewport empty" id="admin-theater-viewport">
+            <span>> NO_THEATER_SELECTED_</span>
+          </div>
+        </div>
+
+        <div class="theater-workspace-side">
+          <div class="theater-item" id="admin-location-editor" hidden>
+            <h3>Edit Location</h3>
+
+            <div class="form-group">
+              <label for="admin-loc-name">Location Name</label>
+              <input type="text" id="admin-loc-name">
+            </div>
+
+            <div class="form-group">
+              <label for="admin-loc-description">Description</label>
+              <input type="text" id="admin-loc-description">
+            </div>
+
+            <div class="form-group">
+              <label for="admin-loc-galactic-pos">Galactic Position (optional)</label>
+              <input type="text" id="admin-loc-galactic-pos">
+            </div>
+
+            <div class="form-group theater-inline-check">
+              <input type="checkbox" id="admin-loc-visible" checked>
+              <label for="admin-loc-visible">Show to players</label>
+            </div>
+            <div id="admin-loc-visibility-warning" class="theater-visibility-warning" hidden></div>
+
+            <div class="form-group">
+              <label for="admin-loc-color">Marker Color</label>
+              <input type="color" id="admin-loc-color" value="#e0e0e0" class="theater-color-swatch">
+              <label for="admin-loc-scale" class="theater-scale-label">Scale</label>
+              <input type="number" id="admin-loc-scale" class="theater-scale-input" min="0.25" max="4" step="0.25" value="1">
+            </div>
+
+            <div class="form-group">
+              <label for="admin-loc-child-theater">Drill-down to Theater</label>
+              <select id="admin-loc-child-theater">
+                <option value="">(none)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Icon</label>
+              <div id="admin-loc-icon-grid" class="theater-icon-grid">
+                <% (typeof emblems !== 'undefined' ? emblems : []).forEach(function(emblem) { %>
+                  <img class="theater-icon-option" src="/emblems/<%= emblem %>" data-icon="<%= emblem %>" title="<%= emblem %>" onclick="theaterAdminSelectIcon('<%= emblem %>')">
+                <% }); %>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Assigned Jobs</label>
+              <div class="theater-inline-check">
+                <input type="checkbox" id="admin-loc-jobs-unassigned-only" onchange="theaterAdminRenderJobChecklist({ assignedJobIds: theaterAdminCheckedJobIds() })">
+                <label for="admin-loc-jobs-unassigned-only">Only show jobs not assigned elsewhere</label>
+              </div>
+              <div class="theater-job-checklist" id="admin-loc-jobs">
+                <!-- Populated by JS from /api/jobs -->
+              </div>
+            </div>
+
+            <div class="form-group">
+              <button type="button" class="btn btn-primary" onclick="theaterAdminSaveLocation()">Save Location</button>
+              <button type="button" class="btn btn-delete" onclick="theaterAdminDeleteLocation()">Delete Location</button>
+              <button type="button" class="btn btn-neutral" onclick="theaterAdminCloseLocationEditor()">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

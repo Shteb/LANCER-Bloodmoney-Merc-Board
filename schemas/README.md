@@ -81,6 +81,20 @@ This directory contains JSON Schema definitions for all data structures used in 
     - Container for all voting periods (Ongoing and historical/Archived)
     - References voting-period.schema.json for array items
 
+17. **theater-location.schema.json** - Theater location marker schema
+    - Defines a single location placed on an operational theater
+    - Locations use normalized `x`/`y` (0..1) so markers survive map rescaling
+    - `assignedJobIds` references Job `id` values (missions shown at that location)
+    - Optional `childTheaterId` enables drill-down into a sublocation theater
+
+18. **theater.schema.json** - Operational theater schema
+    - Defines a theater: a flat 2D map with a `backgroundImage`
+    - Contains an array of locations (references theater-location.schema.json)
+
+19. **theaters.schema.json** - Theaters container schema
+    - Container for all theaters (data/theaters.json)
+    - References theater.schema.json for array items
+
 ## Schema Validation
 
 ### Using with JSON Schema Validators

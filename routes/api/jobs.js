@@ -2,18 +2,30 @@ const express = require('express');
 const helpers = require('../../helpers');
 const dataStore = require('../../models/dataStore');
 const { requireAnyAuth, requireAdminAuth } = require('../../middleware/auth');
-const { broadcastSSE } = require('../../lib/sseManager');
+const { enrichJobs, broadcastJobs } = require('../../lib/jobBroadcast');
 
 const router = express.Router();
 
+// Check body.locationId names a real location. Run before the job is written.
+function validateLocationId(locationId) {
+  if (locationId === undefined) return null;
+  const id = String(locationId || '');
+  if (id && !dataStore.readTheaters().some(t => (t.locations || []).some(l => l.id === id))) {
+    return 'Location not found';
+  }
+  return null;
+}
+
+// Write the job's location assignment. Must run *after* the job itself is
+// saved: the assignment lives on the theater and would otherwise point at a
+// job that does not exist if the job write failed. broadcastJobs announces it.
+function applyLocation(jobId, locationId) {
+  if (locationId === undefined) return;
+  dataStore.setJobLocation(jobId, String(locationId || ''));
+}
+
 router.get('/', requireAnyAuth, (req, res) => {
-  const jobs = dataStore.readJobs();
-  const factions = dataStore.readFactions();
-  
-  // Enrich jobs with faction data
-  const enrichedJobs = dataStore.enrichJobsWithFactions(jobs, factions);
-  
-  res.json(enrichedJobs);
+  res.json(enrichJobs(dataStore.readJobs(), req.session && req.session.role === 'admin'));
 });
 
 router.post('/', requireAdminAuth, (req, res) => {
@@ -40,12 +52,17 @@ router.post('/', requireAdminAuth, (req, res) => {
     state: validation.state,
     factionId: validation.factionId
   };
+  const locationError = validateLocationId(req.body.locationId);
+  if (locationError) {
+    return res.status(400).json({ success: false, message: locationError });
+  }
   jobs.push(newJob);
   dataStore.writeJobs(jobs);
-  
+  applyLocation(newJob.id, req.body.locationId);
+
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'create', job: newJob, jobs });
-  
+  broadcastJobs({ action: 'create', job: newJob, jobs });
+
   res.json({ success: true, job: newJob });
 });
 
@@ -83,16 +100,21 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
     factionId: validation.factionId
   };
   
+  const locationError = validateLocationId(req.body.locationId);
+  if (locationError) {
+    return res.status(400).json({ success: false, message: locationError });
+  }
   jobs[index] = newJob;
   dataStore.writeJobs(jobs);
-  
+  applyLocation(newJob.id, req.body.locationId);
+
   // Auto-archive ongoing voting period if Active job changes to another state
   if (wasActive && newJob.state !== 'Active') {
     await dataStore.archiveOngoingVotingPeriod('Active job state changed');
   }
-  
+
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs });
+  broadcastJobs({ action: 'update', job: jobs[index], jobs });
   
   res.json({ success: true, job: jobs[index] });
 });
@@ -101,10 +123,14 @@ router.delete('/:id', requireAdminAuth, (req, res) => {
   let jobs = dataStore.readJobs();
   jobs = jobs.filter(j => j.id !== req.params.id);
   dataStore.writeJobs(jobs);
-  
+
+  // Drop the job from any location holding it. Left behind, the stale ID fails
+  // the assignedJobIds check the next time that location is edited.
+  applyLocation(req.params.id, '');
+
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'delete', jobId: req.params.id, jobs });
-  
+  broadcastJobs({ action: 'delete', jobId: req.params.id, jobs });
+
   res.json({ success: true });
 });
 
@@ -137,8 +163,8 @@ router.put('/:id/state', requireAdminAuth, async (req, res) => {
   }
   
   // Broadcast SSE update
-  broadcastSSE('jobs', { action: 'update', job: jobs[index], jobs });
-  
+  broadcastJobs({ action: 'update', job: jobs[index], jobs });
+
   res.json({ success: true, job: jobs[index] });
 });
 

@@ -13,7 +13,7 @@
     <div class="terminal-header-left">
       <h1>> <span id="portal-heading"><%= settings.portalHeading %></span> - JOB BOARD_</h1>
       <p>> USER_GROUP: <span id="user-group"><%= settings.userGroup %></span>_</p>
-      <p>> AVAILABLE MISSIONS: <span id="jobs-count"><%= jobs.length %></span>_</p>
+      <p>> AVAILABLE JOBS: <span id="jobs-count"><%= jobs.length %></span>_</p>
       <a href="/client/overview" class="terminal-link">[OVERVIEW]</a>
     </div>
     <div class="terminal-header-right">
@@ -58,6 +58,13 @@
           <span class="field-value"><%= job.faction ? job.faction.title : 'FIELD_NULL' %></span>
         </div>
         
+        <% if (job.location) { %>
+        <div class="job-field">
+          <span class="field-label">LOCATION:</span>
+          <span class="field-value"><%= job.location.name %></span>
+        </div>
+        <% } %>
+
         <div class="job-field">
           <span class="field-label">JOB_TYPE:</span>
           <span class="field-value"><%= job.jobType %></span>
@@ -213,6 +220,17 @@
       currentOngoingVotingPeriod = currentVotingPeriods.periods.find(p => p.state === 'Ongoing') || null;
     }
     
+    // Expose voting context to shared job-details modal (shared-handlers.js)
+    // so the "VOTES" section + [CAST_VOTE] button can render inside the modal.
+    Object.defineProperty(window, 'currentOngoingVotingPeriod', {
+      get: () => currentOngoingVotingPeriod,
+      configurable: true
+    });
+    // isVotingActive/getVoteCount/openVotingModal are top-level function
+    // declarations, so they are already window properties. Do NOT re-assign
+    // them to wrapper arrows here: the wrapper body resolves the name back to
+    // the wrapper itself and recurses until the stack overflows.
+
     // Check if voting is currently active (ongoing period and not past end time)
     // Note: This uses client-side time for UI responsiveness, but server validates with server time
     function isVotingActive() {
@@ -397,6 +415,12 @@
               }</span>
             </div>
             
+            ${job.location ? `
+            <div class="job-field">
+              <span class="field-label">LOCATION:</span>
+              <span class="field-value">${job.location.name}</span>
+            </div>` : ''}
+
             <div class="job-field">
               <span class="field-label">JOB_TYPE:</span>
               <span class="field-value">${job.jobType}</span>

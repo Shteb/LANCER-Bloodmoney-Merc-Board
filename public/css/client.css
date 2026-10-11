@@ -971,6 +971,7 @@
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
   margin-top: 20px;
+  align-items: stretch;
 }
 
 .pilot-card {
@@ -1026,6 +1027,12 @@
   margin-bottom: 12px;
   display: flex;
   flex-direction: column;
+  flex-grow: 0;
+}
+
+/* Let Notes absorb the spare space in each row so the action buttons line up,
+   without vertically centering Balance or the note text. */
+.pilot-card > .pilot-field:not(.pilot-balance-field) {
   flex-grow: 1;
 }
 

@@ -64,7 +64,14 @@
           </label>
           <input type="checkbox" id="settingsOpenTable" name="openTable" value="true" <%= settings.openTable ? 'checked' : '' %> style="width: auto; margin-left: 10px; vertical-align: middle;">
         </div>
-        
+
+        <div class="form-group">
+          <label for="settingsTheatersVisible" style="display: inline-block; font-weight: bold; margin-bottom: 0;">
+            Show Operational Theaters (Visible to Pilots)
+          </label>
+          <input type="checkbox" id="settingsTheatersVisible" name="theatersVisible" value="true" <%= settings.theatersVisible ? 'checked' : '' %> style="width: auto; margin-left: 10px; vertical-align: middle;">
+        </div>
+
         <div class="form-group">
           <label>Currency Icon</label>
           <button type="button" class="btn" onclick="openCurrencyIconModal()" style="margin-top: 5px;">

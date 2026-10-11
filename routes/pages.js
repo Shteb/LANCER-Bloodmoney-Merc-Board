@@ -3,6 +3,7 @@ const fs = require('fs');
 const helpers = require('../helpers');
 const dataStore = require('../models/dataStore');
 const { requireClientAuth, requireAdminAuth } = require('../middleware/auth');
+const { theaterIsVisibleToPlayers, getActiveJobIds, theatersForPlayer } = require('../lib/theaterVisibility');
 
 const router = express.Router();
 
@@ -30,11 +31,19 @@ router.get('/client/overview', requireClientAuth, (req, res) => {
   // Convert back to newest-first and take the last 5 for display
   const withCumulativeNewestFirst = [...withCumulativeOldestFirst].reverse();
   const recentWithBalance = withCumulativeNewestFirst.slice(0, 5);
-  
-  res.render('client-overview', { 
-    settings, 
-    colorScheme: settings.colorScheme, 
+
+  // Theaters tab only shows if the GM has it enabled AND at least one theater
+  // is reachable by players (active, or hidden but holding an active job).
+  const theaters = dataStore.readTheaters();
+  const activeJobIds = getActiveJobIds(dataStore.readJobs());
+  const showTheaters = !!settings.theatersVisible &&
+    theaters.some(t => theaterIsVisibleToPlayers(t, activeJobIds));
+
+  res.render('client-overview', {
+    settings,
+    colorScheme: settings.colorScheme,
     totalBalance,
+    showTheaters,
     recentTransactions: recentWithBalance
   });
 });
@@ -73,9 +82,12 @@ router.get('/client/jobs', requireClientAuth, (req, res) => {
   const settings = dataStore.readSettings();
   const factions = dataStore.readFactions();
   
-  // Enrich jobs with faction data
-  const enrichedJobs = dataStore.enrichJobsWithFactions(jobs, factions);
-  
+  // Enrich jobs with faction data. Locations come from the player-visible
+  // theater set, so a job never names a location the pilot can't reach.
+  const enrichedJobs = dataStore.enrichJobsWithLocations(
+    dataStore.enrichJobsWithFactions(jobs, factions),
+    theatersForPlayer(dataStore.readTheaters(), allJobs, settings)
+  );
   res.render('client-jobs', { jobs: enrichedJobs, settings, colorScheme: settings.colorScheme });
 });
 
@@ -176,6 +188,14 @@ router.get('/client/reserves', requireClientAuth, (req, res) => {
   });
 });
 
+router.get('/client/theaters', requireClientAuth, (req, res) => {
+  const settings = dataStore.readSettings();
+  if (!settings.theatersVisible) {
+    return res.redirect('/client/overview');
+  }
+  res.render('client-theaters', { settings, colorScheme: settings.colorScheme });
+});
+
 router.get('/admin', requireAdminAuth, (req, res) => {
   const jobs = dataStore.readJobs();
   const settings = dataStore.readSettings();
@@ -187,6 +207,7 @@ router.get('/admin', requireAdminAuth, (req, res) => {
   const reserves = dataStore.readReserves();
   const storeConfig = dataStore.readStoreConfig();
   const votingPeriodsData = dataStore.readVotingPeriods();
+  const theaters = dataStore.readTheaters();
   const emblemFiles = fs.readdirSync(dataStore.getLogoArtDir())
     .filter(file => file.endsWith('.svg'))
     .sort();
@@ -204,11 +225,11 @@ router.get('/admin', requireAdminAuth, (req, res) => {
   const factionMap = dataStore.createFactionMap(enrichedFactions);
   
   // Enrich jobs with faction data and state class, then reverse for newest first
-  const enrichedJobs = jobs.map(job => ({
+  const enrichedJobs = dataStore.enrichJobsWithLocations(jobs.map(job => ({
     ...job,
     stateClass: job.state ? job.state.toLowerCase() : helpers.DEFAULT_JOB_STATE.toLowerCase(),
     faction: factionMap[job.factionId] || null
-  })).reverse();
+  })), theaters).reverse();
   
   // Get active job IDs for voting period creation
   const activeJobIds = jobs.filter(j => j.state === 'Active').map(j => j.id);
@@ -231,6 +252,7 @@ router.get('/admin', requireAdminAuth, (req, res) => {
     votingPeriods: votingPeriodsData.periods || [],
     activeJobIds: activeJobIds,
     ongoingPeriod: ongoingPeriod,
+    theaters: theaters,
     emblems: emblemFiles, 
     formatEmblemTitle: helpers.formatEmblemTitle,
     jobStates: helpers.JOB_STATES,

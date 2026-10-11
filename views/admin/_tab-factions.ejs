@@ -53,6 +53,18 @@
           </div>
         </div>
 
+        <div class="button-group">
+          <div class="button-container">
+            <input type="file" id="factionFileInput" class="is-hidden" accept="image/png,image/jpeg,image/bmp">
+            <button type="button" class="btn btn-neutral" onclick="document.getElementById('factionFileInput').click()" title="Uploads an image and converts it to SVG">Upload Emblem</button>
+            <p class="helper-text">Accepts PNG, JPEG, BMP (max 10MB)</p>
+          </div>
+          <div class="button-container">
+            <button type="button" class="btn btn-delete" onclick="deleteSelectedFactionEmblem()">Delete Selected Emblem</button>
+            <p class="helper-text">Deletes the selected emblem if not in use</p>
+          </div>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-add-job">Add Faction</button>
       </form>
     </div>

@@ -104,6 +104,14 @@ function initSSE() {
     }
   });
   
+  // Handle theaters updates
+  eventSource.addEventListener('theaters', (e) => {
+    const data = JSON.parse(e.data);
+    if (typeof handleTheatersUpdate === 'function') {
+      handleTheatersUpdate(data);
+    }
+  });
+  
   // Handle errors
   eventSource.onerror = (err) => {
     console.error('SSE error:', err);

@@ -1226,6 +1226,56 @@
       }
     });
 
+    document.getElementById('factionFileInput').addEventListener('change', async function () {
+      if (!this.files || this.files.length === 0) return;
+
+      const filePayload = new FormData();
+      filePayload.append('myFile', this.files[0]);
+      try {
+        const response = await fetch('/upload', { method: 'POST', body: filePayload });
+        const data = await response.json();
+        if (!response.ok) {
+          alert(data.message || 'Upload failed');
+          return;
+        }
+
+        const grids = ['emblemGrid', 'editEmblemGrid', 'currencyIconGrid', 'factionEmblemGrid', 'editFactionEmblemGrid'];
+        grids.forEach(id => upsertEmblemOption(document.getElementById(id), data.emblem));
+        const factionGrid = document.getElementById('factionEmblemGrid');
+        factionGrid.querySelectorAll('.emblem-option').forEach(option => option.classList.remove('selected'));
+        factionGrid.querySelector(`[data-emblem="${CSS.escape(data.emblem)}"]`).classList.add('selected');
+        document.getElementById('factionEmblem').value = data.emblem;
+        showNotification(`Emblem uploaded: ${data.emblem}`);
+      } catch (error) {
+        alert('Network error during upload: ' + error.message);
+      } finally {
+        this.value = '';
+      }
+    });
+
+    async function deleteSelectedFactionEmblem() {
+      const selectedEmblem = document.getElementById('factionEmblem').value;
+      if (!selectedEmblem) {
+        alert('Please select an emblem to delete');
+        return;
+      }
+      if (!confirm(`Are you sure you want to delete the emblem "${formatEmblemTitle(selectedEmblem)}"?\n\nThis action cannot be undone.`)) return;
+
+      try {
+        const response = await fetch(`/api/emblems/${encodeURIComponent(selectedEmblem)}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok) {
+          alert(data.message || 'Failed to delete emblem');
+          return;
+        }
+        showNotification('Emblem deleted successfully!');
+        saveScrollPositionForReload();
+        setTimeout(() => location.reload(), 400);
+      } catch (error) {
+        alert('Error deleting emblem: ' + error.message);
+      }
+    }
+
     // Add job
     document.getElementById('addJobForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1263,6 +1313,7 @@
       document.getElementById('editJobRank').value = jobData.rank;
       document.getElementById('editJobState').value = jobData.state || defaultJobState;
       document.getElementById('editJobFaction').value = jobData.factionId || '';
+      document.getElementById('editJobLocation').value = theaterAdminLocationIdForJob(jobData.id);
       document.getElementById('editJobType').value = jobData.jobType;
       document.getElementById('editJobDescription').value = jobData.description;
       document.getElementById('editJobClientBrief').value = jobData.clientBrief;

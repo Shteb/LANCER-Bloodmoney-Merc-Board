@@ -54,6 +54,10 @@
       "type": "boolean",
       "description": "Open table flag (optional, defaults to false)"
     },
+    "theatersVisible": {
+      "type": "boolean",
+      "description": "Whether the Operational Theaters tab is visible to players (optional, defaults to true)"
+    },
     "clientPassword": {
       "type": "string",
       "description": "Password for CLIENT mode access (alphanumeric only, case-sensitive)",

@@ -245,10 +245,68 @@ function openJobDetails(jobId, jobs, factions) {
         <span class="field-label">STATUS:</span>
         <span class="field-value">${job.state.toUpperCase()}</span>
       </div>
+      ${buildJobDetailsVotingSection(job)}
     </div>
   `;
   
   jobDetailsModal.classList.add('active');
+}
+
+/**
+ * Build the optional voting section for the job details modal.
+ *
+ * This is context-aware and only renders when a page provides voting data
+ * via the following optional globals (set by the job board and theater views):
+ *   - window.currentOngoingVotingPeriod : the active voting period object (or null)
+ *   - window.isVotingActive()           : returns true if voting is currently open
+ *   - window.getVoteCount(jobId)         : returns the vote count for a job
+ *   - window.openVotingModal(jobId)      : opens the pilot-selection voting modal
+ *
+ * When those aren't present (e.g. pages without voting), nothing is rendered,
+ * so the job details modal behaves exactly as before.
+ *
+ * @param {Object} job - the job being displayed
+ * @returns {string} HTML for the voting section (may be empty string)
+ */
+function buildJobDetailsVotingSection(job) {
+  const period = (typeof window.currentOngoingVotingPeriod !== 'undefined')
+    ? window.currentOngoingVotingPeriod
+    : null;
+
+  // No ongoing voting period → no voting UI
+  if (!period) return '';
+
+  // Vote count display (falls back to 0 if helper is unavailable)
+  let voteCount = 0;
+  if (typeof window.getVoteCount === 'function') {
+    voteCount = window.getVoteCount(job.id) || 0;
+  }
+  let voteIcons = '';
+  for (let i = 0; i < voteCount; i++) {
+    voteIcons += '<img src="/emblems/votemark.svg" alt="Vote" class="vote-icon">';
+  }
+
+  // Only Active jobs are votable; show a cast-vote button when voting is open
+  const votingActive = (typeof window.isVotingActive === 'function')
+    ? window.isVotingActive()
+    : false;
+  const canVote = votingActive && job.state === 'Active'
+    && typeof window.openVotingModal === 'function';
+
+  const castVoteButton = canVote
+    ? `<button class="modal-button confirm-button" style="margin-top:8px;"
+         onclick="closeModal('job-details-modal'); window.openVotingModal('${job.id}')">
+         [CAST_VOTE]
+       </button>`
+    : '';
+
+  return `
+    <div class="job-details-field">
+      <span class="field-label">VOTES:</span>
+      <span class="field-value">${voteIcons || '-'}</span>
+    </div>
+    ${castVoteButton}
+  `;
 }
 
 /**

@@ -33,7 +33,8 @@ function validateAgainstSchema(data, schema, dataPath = 'root') {
 
           // Skip type checking for null values when the field is optional
           if (!(value === null && !isRequired)) {
-            if (propSchema.type !== actualType) {
+            // type may be a single name or a list, e.g. ["string", "null"]
+            if (![].concat(propSchema.type).includes(actualType)) {
               errors.push(`${dataPath}.${key}: Expected type '${propSchema.type}' but got '${actualType}'`);
             }
           }
@@ -86,7 +87,7 @@ function validateAgainstSchema(data, schema, dataPath = 'root') {
 /**
  * Test a single data file against its schema
  */
-function testSchema(schemaFile, dataFile, dataName, isArray = true) {
+function testSchema(schemaFile, dataFile, dataName, isArray = true, arrayProperty = null) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`Testing: ${dataName}`);
   console.log(`Schema: ${schemaFile}`);
@@ -95,7 +96,12 @@ function testSchema(schemaFile, dataFile, dataName, isArray = true) {
   
   try {
     const schema = JSON.parse(fs.readFileSync(schemaFile, 'utf8'));
-    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const fileData = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const data = arrayProperty ? fileData[arrayProperty] : fileData;
+
+    if (arrayProperty && !Array.isArray(data)) {
+      throw new Error(`Expected '${arrayProperty}' to be an array in ${dataFile}`);
+    }
     
     let allValid = true;
     
@@ -149,8 +155,21 @@ results.push(testSchema('schemas/job.schema.json', 'data/jobs.json', 'Job', true
 results.push(testSchema('schemas/pilot.schema.json', 'data/pilots.json', 'Pilot', true));
 results.push(testSchema('schemas/faction.schema.json', 'data/factions.json', 'Faction', true));
 results.push(testSchema('schemas/manna.schema.json', 'data/manna.json', 'Manna', false));
-results.push(testSchema('schemas/base.schema.json', 'data/base.json', 'Base', false));
+results.push(testSchema(
+  'schemas/base-core-major-facility.schema.json',
+  'data/base_core_major_facilities.json',
+  'Core/Major Facility',
+  true
+));
+results.push(testSchema(
+  'schemas/minor-facility-slot.schema.json',
+  'data/minor_facilities_slots.json',
+  'Minor Facility Slot',
+  true,
+  'slots'
+));
 results.push(testSchema('schemas/settings.schema.json', 'data/settings.json', 'Settings', false));
+results.push(testSchema('schemas/theater.schema.json', 'data/theaters.json', 'Theater', true));
 
 // Summary
 console.log('\n' + '='.repeat(60));

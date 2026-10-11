@@ -2,9 +2,24 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const FileSessionStore = require('./models/sessionStore');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Log an unexpected error and let the process die so the host restarts it
+// clean. Carrying on would mean serving -- and writing over -- state of
+// unknown validity, and this app persists everything as whole-file JSON
+// writes. Logins survive the restart because sessions are stored in a file
+// (see FileSessionStore below), which is what makes exiting here safe.
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+  process.exit(1);
+});
 
 // pkg detection and path configuration
 const IS_PKG = typeof process.pkg !== 'undefined';
@@ -26,14 +41,19 @@ app.use(express.json());
 // Serve static files (no session needed)
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/emblems', express.static(path.join(BASE_PATH, 'logo_art')));
+app.use('/theater-assets', express.static(dataStore.getTheaterAssetsDir()));
 
 // Health endpoint for monitoring uptime
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Session configuration
+// Session configuration.
+// Sessions are stored in a file (not the default in-memory store) so a
+// process restart -- an idle-timeout recycle, a crash, a redeploy -- doesn't
+// force everyone to log back in.
 app.use(session({
+  store: new FileSessionStore(path.join(dataStore.getDataDir(), 'sessions.json')),
   secret: process.env.SESSION_SECRET || 'lancer-job-board-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
@@ -55,6 +75,7 @@ app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/pages'));
 app.use('/', require('./routes/sse'));
 app.use('/', require('./routes/upload'));
+app.use('/', require('./routes/theaterUpload'));
 app.use('/api/jobs', require('./routes/api/jobs'));
 app.use('/api/settings', require('./routes/api/settings'));
 app.use('/api/reserves', require('./routes/api/reserves'));
@@ -65,6 +86,7 @@ app.use('/api/facilities', require('./routes/api/facilities'));
 app.use('/api/factions', require('./routes/api/factions'));
 app.use('/api/pilots', require('./routes/api/pilots'));
 app.use('/api/shop', require('./routes/api/shop'));
+app.use('/api/theaters', require('./routes/api/theaters'));
 // Admin batch operations are mounted at root since they use /api/jobs/ and /api/pilots/ prefixes
 app.use('/', require('./routes/api/admin'));
 
