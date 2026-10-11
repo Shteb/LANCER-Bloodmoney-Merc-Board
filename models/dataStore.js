@@ -246,20 +246,34 @@ function enrichJobsWithLocations(jobs, theaters) {
   });
 }
 
-// Move a job to a single location (empty/unknown locationId = unassign everywhere).
-// Returns true when theaters were changed and written.
-function setJobLocation(jobId, locationId) {
-  const theaters = readTheaters();
+// A job belongs to one location at a time: drop the given jobs from every
+// location except keepLocationId. Mutates theaters; returns true if it changed.
+function unassignJobsElsewhere(theaters, jobIds, keepLocationId) {
+  const moving = new Set(jobIds);
+  if (moving.size === 0) return false;
   let changed = false;
   theaters.forEach(theater => {
     (theater.locations || []).forEach(loc => {
+      if (loc.id === keepLocationId) return;
       const ids = loc.assignedJobIds || [];
-      const has = ids.includes(jobId);
-      const want = loc.id === locationId;
-      if (has && !want) {
-        loc.assignedJobIds = ids.filter(id => id !== jobId);
+      if (ids.some(id => moving.has(id))) {
+        loc.assignedJobIds = ids.filter(id => !moving.has(id));
         changed = true;
-      } else if (!has && want) {
+      }
+    });
+  });
+  return changed;
+}
+
+// Move a job to a single location (empty/unknown locationId = unassign everywhere).
+// Returns the updated theaters when they were changed and written.
+function setJobLocation(jobId, locationId) {
+  const theaters = readTheaters();
+  let changed = unassignJobsElsewhere(theaters, [jobId], locationId);
+  theaters.forEach(theater => {
+    (theater.locations || []).forEach(loc => {
+      const ids = loc.assignedJobIds || [];
+      if (loc.id === locationId && !ids.includes(jobId)) {
         loc.assignedJobIds = [...ids, jobId];
         changed = true;
       }
@@ -1220,6 +1234,7 @@ module.exports = {
   enrichJobsWithFactions,
   enrichJobsWithLocations,
   setJobLocation,
+  unassignJobsElsewhere,
   enrichAllFactions,
   enrichPilotsWithBalance,
   validateJobData,

@@ -281,6 +281,30 @@ test('theaters SSE sends players nothing when the GM switched theaters off', () 
   }
 });
 
+// ==================== Single-location assignment ====================
+
+test('assigning a job to a location drops it from every other location', () => {
+  const { unassignJobsElsewhere } = require('./models/dataStore');
+  const theaters = [
+    {
+      id: 't1',
+      locations: [
+        { id: 'keep', assignedJobIds: ['job-a', 'job-b'] },
+        { id: 'old', assignedJobIds: ['job-a', 'job-c'] }
+      ]
+    },
+    { id: 't2', locations: [{ id: 'far', assignedJobIds: ['job-b'] }] }
+  ];
+
+  const changed = unassignJobsElsewhere(theaters, ['job-a', 'job-b'], 'keep');
+
+  assert(changed, 'should report a change');
+  assert.deepStrictEqual(theaters[0].locations[0].assignedJobIds, ['job-a', 'job-b'], 'kept location untouched');
+  assert.deepStrictEqual(theaters[0].locations[1].assignedJobIds, ['job-c'], 'other location in same theater stripped');
+  assert.deepStrictEqual(theaters[1].locations[0].assignedJobIds, [], 'other theater stripped too');
+  assert(!unassignJobsElsewhere(theaters, [], 'keep'), 'no jobs means no change');
+});
+
 // ==================== Summary ====================
 
 console.log('\n' + '='.repeat(50));

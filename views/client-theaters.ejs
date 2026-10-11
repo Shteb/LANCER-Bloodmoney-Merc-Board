@@ -561,7 +561,7 @@
       const elements = getTheaterPanelElements();
       if (!elements.panel || !loc) return;
       renderPanelHeader(elements, loc, true);
-      elements.listHeading.textContent = 'ASSIGNED_MISSIONS:';
+      elements.listHeading.textContent = 'ASSIGNED_JOBS:';
 
       // Drill-down link to a child theater (Iter 2 concept, works for flat too)
       if (loc.childTheaterId && theaterState.theaters.some(t => t.id === loc.childTheaterId)) {
@@ -572,11 +572,11 @@
         elements.childButton.onclick = null;
       }
 
-      // Assigned missions — same data + same interactions as job board
+      // Assigned jobs — same data + same interactions as job board
       const assignedJobs = getActiveJobsForLocation(loc);
 
       if (assignedJobs.length === 0) {
-        elements.list.innerHTML = '<span class="client-theater-muted">> NO_MISSIONS_ASSIGNED_</span>';
+        elements.list.innerHTML = '<span class="client-theater-muted">> NO_JOBS_ASSIGNED_</span>';
         return;
       }
 

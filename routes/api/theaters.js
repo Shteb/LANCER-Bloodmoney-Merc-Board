@@ -115,7 +115,7 @@ function locationFields(validation, theaterId) {
 
 // GET theaters (any authenticated user).
 // Admins see all theaters. Clients see enabled theaters plus hidden theaters
-// containing an active job, so active missions are never made unreachable --
+// containing an active job, so active jobs are never made unreachable --
 // and nothing at all when the GM has theaters switched off.
 router.get('/', requireAnyAuth, (req, res) => {
   const theaters = dataStore.readTheaters();
@@ -223,6 +223,7 @@ router.post('/:id/locations', requireAdminAuth, (req, res) => {
 
   if (!Array.isArray(theater.locations)) theater.locations = [];
   theater.locations.push(newLocation);
+  dataStore.unassignJobsElsewhere(theaters, newLocation.assignedJobIds, newLocation.id);
   dataStore.writeTheaters(theaters);
 
   broadcastTheaters({ action: 'location-create', theater, theaters });
@@ -255,6 +256,11 @@ router.put('/:id/locations/:locId', requireAdminAuth, (req, res) => {
       ? theater.locations[locIndex].assignedJobIds || []
       : validation.assignedJobIds
   };
+  dataStore.unassignJobsElsewhere(
+    theaters,
+    theater.locations[locIndex].assignedJobIds,
+    theater.locations[locIndex].id
+  );
   dataStore.writeTheaters(theaters);
 
   broadcastTheaters({ action: 'location-update', theater, theaters });

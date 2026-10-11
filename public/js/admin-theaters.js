@@ -57,11 +57,7 @@ function handleJobsUpdate(data) {
       // Rebuild the checklist against whatever is currently checked in the
       // DOM (not the last-saved location), so an in-progress, unsaved
       // selection survives a jobs list refresh instead of being wiped.
-      const jobsEl = document.getElementById('admin-loc-jobs');
-      const checkedIds = jobsEl
-        ? Array.from(jobsEl.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
-        : [];
-      theaterAdminRenderJobChecklist({ assignedJobIds: checkedIds });
+      theaterAdminRenderJobChecklist({ assignedJobIds: theaterAdminCheckedJobIds() });
       theaterAdminUpdateLocationVisibilityWarning();
     }
   }
@@ -122,7 +118,7 @@ function theaterAdminSetWarning(warning, show, message) {
 }
 
 // Mirrors getActiveJobIds in lib/theaterVisibility.js, for the editor's
-// "this still holds an active mission" warnings only. Not a permission check:
+// "this still holds an active job" warnings only. Not a permission check:
 // what a player actually sees is decided server-side.
 function theaterAdminActiveJobIds() {
   return new Set(AdminTheaters.jobs.filter(job => job.state === 'Active').map(job => job.id));
@@ -147,7 +143,7 @@ function theaterAdminUpdateTheaterVisibilityWarning() {
   theaterAdminSetWarning(
     warning,
     showWarning,
-    'Warning: this theater has active missions at one or more locations, so it will still be shown to players. Active: ' + activeJobs.map(job => job.name).join(', ')
+    'Warning: this theater has active jobs at one or more locations, so it will still be shown to players. Active: ' + activeJobs.map(job => job.name).join(', ')
   );
 }
 
@@ -574,7 +570,7 @@ function theaterAdminUpdateLocationVisibilityWarning() {
   theaterAdminSetWarning(
     warning,
     showWarning,
-    'Warning: hidden locations with active missions are still shown to players. Active: ' + activeJobs.map(job => job.name).join(', ')
+    'Warning: hidden locations with active jobs are still shown to players. Active: ' + activeJobs.map(job => job.name).join(', ')
   );
 }
 
@@ -633,29 +629,72 @@ function theaterAdminOpenLocationEditor(loc) {
   theaterAdminRenderJobChecklist(loc);
 }
 
+// What is ticked in the editor right now, which during an edit is ahead of the
+// last-saved location.
+function theaterAdminCheckedJobIds() {
+  return Array.from(
+    document.querySelectorAll('#admin-loc-jobs input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+}
+
+// A job sits at one location at a time, so saving it here takes it off whatever
+// other location currently holds it. Map each job to that other location.
+function theaterAdminJobLocationElsewhere() {
+  const map = {};
+  AdminTheaters.theaters.forEach(theater => {
+    (theater.locations || []).forEach(loc => {
+      if (loc.id === AdminTheaters.editingLocationId) return;
+      (loc.assignedJobIds || []).forEach(jobId => {
+        if (!map[jobId]) map[jobId] = theater.name + ' / ' + loc.name;
+      });
+    });
+  });
+  return map;
+}
+
 function theaterAdminRenderJobChecklist(loc) {
   const jobsEl = document.getElementById('admin-loc-jobs');
   if (!jobsEl) return;
   const assigned = new Set(loc ? (loc.assignedJobIds || []) : []);
+  const elsewhere = theaterAdminJobLocationElsewhere();
+  const onlyEl = document.getElementById('admin-loc-jobs-unassigned-only');
+  const unassignedOnly = !!(onlyEl && onlyEl.checked);
   jobsEl.innerHTML = '';
   if (AdminTheaters.jobs.length === 0) {
     jobsEl.innerHTML = '<span class="theater-admin-empty">No jobs available.</span>';
     return;
   }
+  let shown = 0;
   AdminTheaters.jobs.forEach(job => {
+    const other = elsewhere[job.id];
+    const checked = assigned.has(job.id);
+    // Never hide a ticked job: the save reads the boxes, so hiding one would
+    // silently drop it from the selection.
+    if (unassignedOnly && other && !checked) return;
     const label = document.createElement('label');
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = job.id;
-    cb.checked = assigned.has(job.id);
+    cb.checked = checked;
     cb.addEventListener('change', theaterAdminUpdateLocationVisibilityWarning);
     label.appendChild(cb);
     const text = document.createElement('span');
     text.className = 'theater-job-label-text';
     text.textContent = job.name + ' [' + (job.state || '') + ']';
+    if (other) {
+      label.title = 'This will unassign this job from ' + other;
+      const note = document.createElement('span');
+      note.className = 'theater-admin-muted';
+      note.textContent = ' — assigned to ' + other;
+      text.appendChild(note);
+    }
     label.appendChild(text);
     jobsEl.appendChild(label);
+    shown++;
   });
+  if (shown === 0) {
+    jobsEl.innerHTML = '<span class="theater-admin-empty">No unassigned jobs.</span>';
+  }
   theaterAdminUpdateLocationVisibilityWarning();
   theaterAdminUpdateLocationPreview();
 }
@@ -675,9 +714,7 @@ function theaterAdminCloseLocationEditor(skipRender) {
 }
 
 function theaterAdminGatherLocationBody(existingLoc) {
-  const assignedJobIds = Array.from(
-    document.querySelectorAll('#admin-loc-jobs input[type="checkbox"]:checked')
-  ).map(cb => cb.value);
+  const assignedJobIds = theaterAdminCheckedJobIds();
 
   const childVal = document.getElementById('admin-loc-child-theater').value;
 

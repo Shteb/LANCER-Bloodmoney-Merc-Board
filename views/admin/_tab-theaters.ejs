@@ -5,7 +5,7 @@
   <!-- Create + edit section (styled like the "Add New Faction" section) -->
   <div class="add-job-section">
     <h2>Operational Theaters</h2>
-    <p class="theater-admin-muted">Define theaters (background maps), place locations on them, and assign missions from the job stack to those locations.</p>
+    <p class="theater-admin-muted">Define theaters (background maps), place locations on them, and assign jobs from the job stack to those locations.</p>
 
     <div class="form-group">
       <button type="button" class="btn btn-primary" onclick="theaterAdminCreate()">Add New Theater</button>
@@ -124,7 +124,11 @@
             </div>
 
             <div class="form-group">
-              <label>Assigned Missions</label>
+              <label>Assigned Jobs</label>
+              <div class="theater-inline-check">
+                <input type="checkbox" id="admin-loc-jobs-unassigned-only" onchange="theaterAdminRenderJobChecklist({ assignedJobIds: theaterAdminCheckedJobIds() })">
+                <label for="admin-loc-jobs-unassigned-only">Only show jobs not assigned elsewhere</label>
+              </div>
               <div class="theater-job-checklist" id="admin-loc-jobs">
                 <!-- Populated by JS from /api/jobs -->
               </div>
