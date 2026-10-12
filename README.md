@@ -1,3 +1,5 @@
+LLM Claude used for code review in commit `1dae3a62a43ba1cf16901716321fbb96b775a32e`.
+
 # LANCER Bloodmoney Merc Board
 
 A terminal-styled web application for managing LANCER RPG missions and your mercenary company. Features password-protected access with separate client and admin interfaces for managing jobs, base modules, factions, pilots, reserves, and currency (Manna).
